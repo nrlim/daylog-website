@@ -87,3 +87,12 @@ model Vote {
   
   @@unique([pokerSessionId, userId])
 }
+
+model AnonymousPokerSession {
+  id          String   @id
+  creatorName String
+  participants Json     // Store as JSON array of {name, card, revealed}
+  showResults Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

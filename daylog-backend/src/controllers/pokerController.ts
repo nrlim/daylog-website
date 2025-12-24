@@ -2,7 +2,7 @@ import { Response, Request } from 'express';
 import { prisma } from '../utils/prisma';
 import { AuthRequest } from '../middleware/authMiddleware';
 
-// In-memory storage for anonymous poker sessions (use Redis in production)
+// Interface for participants
 interface Participant {
   name: string;
   card: number | null;
@@ -11,32 +11,41 @@ interface Participant {
 
 interface AnonymousSession {
   id: string;
+  creatorName: string;
   participants: Participant[];
   showResults: boolean;
   createdAt: Date;
+  hostName?: string;
 }
-
-const anonymousSessions = new Map<string, AnonymousSession>();
 
 // Anonymous Poker Session Endpoints (no auth required)
 export const createAnonymousSession = async (req: Request, res: Response) => {
   try {
     const { id, creatorName } = req.body;
     
-    const session: AnonymousSession = {
-      id,
-      participants: [{
-        name: creatorName,
-        card: null,
-        revealed: false
-      }],
-      showResults: false,
-      createdAt: new Date()
-    };
+    const participants: Participant[] = [{
+      name: creatorName,
+      card: null,
+      revealed: false
+    }];
     
-    anonymousSessions.set(id, session);
+    // Save to database
+    const session = await prisma.anonymousPokerSession.create({
+      data: {
+        id,
+        creatorName,
+        participants: participants as any,
+        showResults: false,
+      }
+    });
     
-    res.status(201).json(session);
+    res.status(201).json({
+      id: session.id,
+      creatorName: session.creatorName,
+      participants: session.participants as unknown as Participant[],
+      showResults: session.showResults,
+      hostName: creatorName
+    });
   } catch (error) {
     res.status(500).json({ error: 'Failed to create session' });
   }
@@ -46,13 +55,21 @@ export const getAnonymousSession = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
-    const session = anonymousSessions.get(id);
+    const session = await prisma.anonymousPokerSession.findUnique({
+      where: { id }
+    });
     
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });
     }
     
-    res.json(session);
+    res.json({
+      id: session.id,
+      creatorName: session.creatorName,
+      participants: session.participants as unknown as Participant[],
+      showResults: session.showResults,
+      hostName: session.creatorName
+    });
   } catch (error) {
     res.status(500).json({ error: 'Failed to get session' });
   }
@@ -63,24 +80,41 @@ export const joinAnonymousSession = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { playerName } = req.body;
     
-    const session = anonymousSessions.get(id);
+    const session = await prisma.anonymousPokerSession.findUnique({
+      where: { id }
+    });
     
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });
     }
     
+    const participants = session.participants as unknown as Participant[];
+    
     // Check if player already exists
-    const existingPlayer = session.participants.find(p => p.name === playerName);
+    const existingPlayer = participants.find(p => p.name === playerName);
     if (!existingPlayer) {
-      session.participants.push({
+      participants.push({
         name: playerName,
         card: null,
         revealed: false
       });
     }
     
-    anonymousSessions.set(id, session);
-    res.json(session);
+    // Update database
+    await prisma.anonymousPokerSession.update({
+      where: { id },
+      data: {
+        participants: participants as any
+      }
+    });
+    
+    res.json({
+      id: session.id,
+      creatorName: session.creatorName,
+      participants: participants,
+      showResults: session.showResults,
+      hostName: session.creatorName
+    });
   } catch (error) {
     res.status(500).json({ error: 'Failed to join session' });
   }
@@ -91,19 +125,33 @@ export const voteAnonymous = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { playerName, card, revealed } = req.body;
     
-    const session = anonymousSessions.get(id);
+    const session = await prisma.anonymousPokerSession.findUnique({
+      where: { id }
+    });
     
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });
     }
     
+    let participants = session.participants as unknown as Participant[];
+    
     // Update participant's vote
-    session.participants = session.participants.map(p => 
+    participants = participants.map(p => 
       p.name === playerName ? { ...p, card, revealed } : p
     );
     
-    anonymousSessions.set(id, session);
-    res.json(session);
+    await prisma.anonymousPokerSession.update({
+      where: { id },
+      data: { participants: participants as any }
+    });
+    
+    res.json({
+      id: session.id,
+      creatorName: session.creatorName,
+      participants: participants,
+      showResults: session.showResults,
+      hostName: session.creatorName
+    });
   } catch (error) {
     res.status(500).json({ error: 'Failed to vote' });
   }
@@ -113,17 +161,32 @@ export const revealAllAnonymous = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
-    const session = anonymousSessions.get(id);
+    const session = await prisma.anonymousPokerSession.findUnique({
+      where: { id }
+    });
     
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });
     }
     
-    session.showResults = true;
-    session.participants = session.participants.map(p => ({ ...p, revealed: true }));
+    let participants = session.participants as unknown as Participant[];
+    participants = participants.map(p => ({ ...p, revealed: true }));
     
-    anonymousSessions.set(id, session);
-    res.json(session);
+    const updated = await prisma.anonymousPokerSession.update({
+      where: { id },
+      data: {
+        participants: participants as any,
+        showResults: true
+      }
+    });
+    
+    res.json({
+      id: updated.id,
+      creatorName: updated.creatorName,
+      participants: updated.participants as unknown as Participant[],
+      showResults: updated.showResults,
+      hostName: updated.creatorName
+    });
   } catch (error) {
     res.status(500).json({ error: 'Failed to reveal cards' });
   }
@@ -133,21 +196,36 @@ export const resetAnonymousSession = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
-    const session = anonymousSessions.get(id);
+    const session = await prisma.anonymousPokerSession.findUnique({
+      where: { id }
+    });
     
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });
     }
     
-    session.showResults = false;
-    session.participants = session.participants.map(p => ({ 
+    let participants = session.participants as unknown as Participant[];
+    participants = participants.map(p => ({ 
       ...p, 
       card: null, 
       revealed: false 
     }));
     
-    anonymousSessions.set(id, session);
-    res.json(session);
+    const updated = await prisma.anonymousPokerSession.update({
+      where: { id },
+      data: {
+        participants: participants as any,
+        showResults: false
+      }
+    });
+    
+    res.json({
+      id: updated.id,
+      creatorName: updated.creatorName,
+      participants: updated.participants as unknown as Participant[],
+      showResults: updated.showResults,
+      hostName: updated.creatorName
+    });
   } catch (error) {
     res.status(500).json({ error: 'Failed to reset session' });
   }

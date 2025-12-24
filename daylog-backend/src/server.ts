@@ -18,10 +18,13 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     'https://daylog-frontend.vercel.app',
   ];
 
-  const origin = req.headers.origin;
+  const origin = req.headers.origin || '';
 
-  if (allowedOrigins.includes(origin || '')) {
-    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  // Check if origin is in allowedOrigins or if it's a vercel preview deployment
+  const isAllowed = allowedOrigins.includes(origin) || origin.includes('.vercel.app');
+
+  if (isAllowed) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
