@@ -16,16 +16,19 @@ const PORT = process.env.PORT || 5000;
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5000',
-  'https://daylog-frontend-adhihgado-nrlims-projects.vercel.app',
+  'https://daylog-frontend-jbrys8aom-nrlims-projects.vercel.app',
+  'https://daylog-frontend.vercel.app',
   process.env.FRONTEND_URL,
 ];
 
 // Middleware
 app.use(cors({
   origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      console.warn('CORS blocked origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
