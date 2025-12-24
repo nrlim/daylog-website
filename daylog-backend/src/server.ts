@@ -12,34 +12,16 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Allowed origins for CORS
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:5000',
-  'https://daylog-frontend.vercel.app',
-  process.env.FRONTEND_URL,
-];
-
-// Middleware
+// Simple CORS configuration for Vercel
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.warn('CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: ['http://localhost:3000', 'http://localhost:5000', 'https://daylog-frontend.vercel.app'],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  maxAge: 86400,
 }));
+
 app.use(express.json());
 app.use(cookieParser());
 
-// Preflight requests
+// Preflight
 app.options('*', cors());
 
 // Routes
@@ -52,6 +34,13 @@ app.get('/', (req, res) => {
   res.json({ message: 'Daily Activity Team API' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// Export for Vercel serverless
+export default app;
+
+// Listen for local development
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
