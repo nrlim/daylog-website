@@ -16,7 +16,8 @@ const PORT = process.env.PORT || 5000;
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5000',
-  process.env.FRONTEND_URL || 'https://daylog-frontend-1kmq3y2l1-nrlims-projects.vercel.app',
+  'https://daylog-frontend-adhihgado-nrlims-projects.vercel.app',
+  process.env.FRONTEND_URL,
 ];
 
 // Middleware
