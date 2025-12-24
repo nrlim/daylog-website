@@ -33,9 +33,15 @@ app.use(cors({
     }
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  maxAge: 86400,
 }));
 app.use(express.json());
 app.use(cookieParser());
+
+// Preflight requests
+app.options('*', cors());
 
 // Routes
 app.use('/api/auth', authRoutes);
