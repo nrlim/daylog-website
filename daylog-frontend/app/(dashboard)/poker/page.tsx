@@ -3,11 +3,13 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { pokerAPI } from '@/lib/api';
+import { useNotificationStore } from '@/lib/store';
 import { PokerSession } from '@/types';
 
 export default function PokerPage() {
   const [sessions, setSessions] = useState<PokerSession[]>([]);
   const [loading, setLoading] = useState(true);
+  const addNotification = useNotificationStore((state) => state.addNotification);
 
   useEffect(() => {
     loadSessions();
@@ -17,8 +19,23 @@ export default function PokerPage() {
     try {
       const response = await pokerAPI.getSessions();
       setSessions(response.data.sessions);
+      
+      if (response.data.sessions.length > 0) {
+        addNotification({
+          type: 'success',
+          title: 'Sessions Loaded!',
+          message: `Found ${response.data.sessions.length} poker session(s).`,
+          duration: 2000
+        });
+      }
     } catch (error) {
       console.error('Failed to load poker sessions:', error);
+      addNotification({
+        type: 'error',
+        title: 'Failed to Load Sessions',
+        message: 'Could not load your poker sessions. Please refresh the page.',
+        duration: 5000
+      });
     } finally {
       setLoading(false);
     }

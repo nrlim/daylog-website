@@ -14,7 +14,7 @@ const app = express();
 app.use((req: Request, res: Response, next: NextFunction) => {
   const allowedOrigins = [
     'http://localhost:3000',
-    'http://localhost:5000',
+    'http://localhost:3001',
     'https://daylog-frontend.vercel.app',
   ];
 

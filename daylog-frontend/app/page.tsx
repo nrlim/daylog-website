@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { authAPI } from '@/lib/api';
-import { useAuthStore } from '@/lib/store';
+import { useAuthStore, useNotificationStore } from '@/lib/store';
 
 const FIBONACCI_CARDS = [1, 2, 3, 5, 8, 13];
 
@@ -17,6 +17,7 @@ interface Participant {
 export default function HomePage() {
   const router = useRouter();
   const setUser = useAuthStore((state) => state.setUser);
+  const addNotification = useNotificationStore((state) => state.addNotification);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [loginError, setLoginError] = useState('');
@@ -80,7 +81,12 @@ export default function HomePage() {
 
   const handleCreateSession = async () => {
     if (!playerName.trim()) {
-      alert('Please enter your name first');
+      addNotification({
+        type: 'warning',
+        title: 'Please enter your name',
+        message: 'Enter your name before creating a session',
+        duration: 3000
+      });
       return;
     }
 
@@ -100,9 +106,21 @@ export default function HomePage() {
         card: null,
         revealed: false
       }]);
+      
+      addNotification({
+        type: 'success',
+        title: 'Session Created!',
+        message: 'Your poker session has been created successfully.',
+        duration: 3000
+      });
     } catch (error) {
       console.error('Failed to create session:', error);
-      alert('Failed to create session. Please try again.');
+      addNotification({
+        type: 'error',
+        title: 'Failed to Create Session',
+        message: 'Could not create the session. Please try again.',
+        duration: 5000
+      });
     } finally {
       setIsCreatingSession(false);
     }
@@ -121,10 +139,22 @@ export default function HomePage() {
           setShowResults(response.data.showResults || false);
           setHostName(response.data.hostName || response.data.creatorName || '');
           setIsInSession(true);
+          
+          addNotification({
+            type: 'success',
+            title: 'Joined Session!',
+            message: `Welcome to the session, ${playerName}!`,
+            duration: 3000
+          });
         }
       } catch (error) {
         console.error('Failed to join session:', error);
-        alert('Failed to join session. Please check the Session ID and try again.');
+        addNotification({
+          type: 'error',
+          title: 'Failed to Join',
+          message: 'Could not join the session. Check the Session ID and try again.',
+          duration: 5000
+        });
       }
     }
   };
@@ -138,9 +168,25 @@ export default function HomePage() {
       const response = await authAPI.login(loginData);
       setUser(response.data.user);
       setShowLoginModal(false);
+      
+      addNotification({
+        type: 'success',
+        title: 'Login Successful!',
+        message: `Welcome back, ${response.data.user.username}!`,
+        duration: 3000
+      });
+      
       router.push('/dashboard');
     } catch (err: any) {
-      setLoginError(err.response?.data?.error || 'Login failed');
+      const errorMsg = err.response?.data?.error || 'Login failed';
+      setLoginError(errorMsg);
+      
+      addNotification({
+        type: 'error',
+        title: 'Login Failed',
+        message: errorMsg,
+        duration: 5000
+      });
     } finally {
       setLoginLoading(false);
     }
@@ -179,8 +225,21 @@ export default function HomePage() {
     try {
       await api.post(`/poker/session/${sessionId}/reveal-all`);
       setShowResults(true);
+      
+      addNotification({
+        type: 'success',
+        title: 'Cards Revealed!',
+        message: 'All participant votes are now visible.',
+        duration: 3000
+      });
     } catch (error) {
       console.error('Failed to reveal all cards:', error);
+      addNotification({
+        type: 'error',
+        title: 'Failed to Reveal',
+        message: 'Could not reveal the cards. Please try again.',
+        duration: 5000
+      });
     }
   };
 
@@ -190,20 +249,43 @@ export default function HomePage() {
       setShowResults(false);
       setSelectedCard(null);
       setIsRevealed(false);
+      
+      addNotification({
+        type: 'success',
+        title: 'Session Reset!',
+        message: 'The session has been reset for a new round.',
+        duration: 3000
+      });
     } catch (error) {
       console.error('Failed to reset session:', error);
+      addNotification({
+        type: 'error',
+        title: 'Failed to Reset',
+        message: 'Could not reset the session. Please try again.',
+        duration: 5000
+      });
     }
   };
 
   const copySessionLink = () => {
     const link = `${window.location.origin}?session=${sessionId}`;
     navigator.clipboard.writeText(link);
-    alert('Session link copied to clipboard!');
+    addNotification({
+      type: 'success',
+      title: 'Link Copied!',
+      message: 'Session link has been copied to clipboard.',
+      duration: 3000
+    });
   };
 
   const copySessionId = () => {
     navigator.clipboard.writeText(sessionId);
-    alert('Session ID copied to clipboard!');
+    addNotification({
+      type: 'success',
+      title: 'ID Copied!',
+      message: 'Session ID has been copied to clipboard.',
+      duration: 3000
+    });
   };
 
   const getCardDisplay = (value: number | null) => {
@@ -328,6 +410,19 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen overflow-y-auto bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
+      {/* Global Loading Overlay */}
+      {(isCreatingSession || loginLoading || isSpinning || swiping || animatingCard !== null) && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white/95 rounded-2xl p-8 shadow-2xl text-center">
+            <div className="w-16 h-16 mx-auto mb-4">
+              <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600"></div>
+            </div>
+            <p className="text-gray-700 font-semibold text-lg">Loading...</p>
+            <p className="text-gray-500 text-sm mt-2">Please wait while we process your request</p>
+          </div>
+        </div>
+      )}
+
       <header className="sticky top-0 bg-white/80 backdrop-blur-md shadow-md border-b border-blue-100 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
