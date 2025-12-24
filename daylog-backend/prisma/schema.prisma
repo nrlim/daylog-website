@@ -1,0 +1,89 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String
+  email     String?  @unique
+  role      String   @default("member") // admin, member
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  teamMembers TeamMember[]
+  activities  Activity[]
+  votes       Vote[]
+}
+
+model Team {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  members        TeamMember[]
+  pokerSessions  PokerSession[]
+}
+
+model TeamMember {
+  id        String   @id @default(uuid())
+  userId    String
+  teamId    String
+  role      String   @default("member") // team_admin, member
+  joinedAt  DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, teamId])
+}
+
+model Activity {
+  id          String   @id @default(uuid())
+  userId      String
+  date        DateTime
+  description String
+  status      String   // Done, InProgress, Blocked
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PokerSession {
+  id          String   @id @default(uuid())
+  teamId      String
+  storyName   String
+  description String?
+  status      String   @default("voting") // voting, revealed, completed
+  finalPoints Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  team  Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  votes Vote[]
+}
+
+model Vote {
+  id              String   @id @default(uuid())
+  pokerSessionId  String
+  userId          String
+  points          Int
+  createdAt       DateTime @default(now())
+  
+  session PokerSession @relation(fields: [pokerSessionId], references: [id], onDelete: Cascade)
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([pokerSessionId, userId])
+}
