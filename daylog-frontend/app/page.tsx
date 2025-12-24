@@ -41,6 +41,7 @@ export default function HomePage() {
   const [spinHistory, setSpinHistory] = useState<string[]>([]);
   const [isRevealingCards, setIsRevealingCards] = useState(false);
   const [isResettingSession, setIsResettingSession] = useState(false);
+  const [isJoiningSession, setIsJoiningSession] = useState(false);
 
   // Check URL parameters for session ID on mount
   useEffect(() => {
@@ -131,6 +132,7 @@ export default function HomePage() {
   const handleJoinSession = async (e: React.FormEvent) => {
     e.preventDefault();
     if (playerName.trim() && sessionId.trim()) {
+      setIsJoiningSession(true);
       try {
         const response = await api.post(`/poker/session/${sessionId}/join`, {
           playerName
@@ -157,6 +159,8 @@ export default function HomePage() {
           message: 'Could not join the session. Check the Session ID and try again.',
           duration: 5000
         });
+      } finally {
+        setIsJoiningSession(false);
       }
     }
   };
@@ -419,7 +423,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen overflow-y-auto bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
       {/* Global Loading Overlay */}
-      {(isCreatingSession || loginLoading || isSpinning || swiping || animatingCard !== null || isRevealingCards || isResettingSession) && (
+      {(isCreatingSession || loginLoading || isSpinning || swiping || animatingCard !== null || isRevealingCards || isResettingSession || isJoiningSession) && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white/95 rounded-2xl p-8 shadow-2xl text-center">
             <div className="w-16 h-16 mx-auto mb-4">
@@ -526,10 +530,20 @@ export default function HomePage() {
               </div>
               <button
                 type="submit"
-                disabled={!playerName.trim() || !sessionId.trim()}
+                disabled={!playerName.trim() || !sessionId.trim() || isJoiningSession}
                 className="w-full bg-white text-blue-600 py-3 rounded-xl font-semibold hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-blue-300 shadow-md hover:shadow-lg text-sm"
               >
-                Join Session
+                {isJoiningSession ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Joining...
+                  </span>
+                ) : (
+                  'Join Session'
+                )}
               </button>
             </form>
           </div>
