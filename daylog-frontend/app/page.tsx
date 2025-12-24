@@ -25,6 +25,7 @@ export default function HomePage() {
   const [playerName, setPlayerName] = useState('');
   const [sessionId, setSessionId] = useState('');
   const [isInSession, setIsInSession] = useState(false);
+  const [hostName, setHostName] = useState<string>('');
   const [selectedCard, setSelectedCard] = useState<number | null>(null);
   const [isRevealed, setIsRevealed] = useState(false);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -92,6 +93,7 @@ export default function HomePage() {
       });
 
       setSessionId(newSessionId);
+      setHostName(playerName);
       setIsInSession(true);
       setParticipants([{
         name: playerName,
@@ -117,6 +119,7 @@ export default function HomePage() {
         if (response.data) {
           setParticipants(response.data.participants || []);
           setShowResults(response.data.showResults || false);
+          setHostName(response.data.hostName || response.data.creatorName || '');
           setIsInSession(true);
         }
       } catch (error) {
@@ -144,15 +147,8 @@ export default function HomePage() {
   };
 
   const handleCardSelect = async (value: number) => {
-    setSwiping(true);
-    setAnimatingCard(value);
     setSelectedCard(value);
     setIsRevealed(false);
-    
-    // Reset flip animation after it completes
-    setTimeout(() => {
-      setSwiping(false);
-    }, 600);
     
     try {
       await api.post(`/poker/session/${sessionId}/vote`, {
@@ -382,7 +378,7 @@ export default function HomePage() {
 
             <button
               onClick={handleCreateSession}
-              disabled={!playerName.trim() || isCreatingSession}
+              disabled={!playerName.trim() || isCreatingSession || sessionId.trim() !== ''}
               className="w-full bg-gradient-to-r from-blue-500 to-teal-500 text-white py-3 rounded-xl font-semibold hover:from-blue-600 hover:to-teal-600 transition-all duration-200 mb-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
             >
               {isCreatingSession ? (
@@ -465,13 +461,15 @@ export default function HomePage() {
                     </svg>
                     Share
                   </button>
-                  <button onClick={handleRevealAll} disabled={showResults} className="text-xs bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all font-semibold shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
-                    <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                    Reveal
-                  </button>
+                  {playerName === hostName && (
+                    <button onClick={handleRevealAll} disabled={showResults || participants.some(p => p.card === null)} title={participants.some(p => p.card === null) ? 'Wait for all participants to vote' : ''} className="text-xs bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all font-semibold shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+                      <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      Reveal
+                    </button>
+                  )}
                   <button onClick={handleReset} className="text-xs bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-all font-semibold shadow-md">
                     <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -496,39 +494,31 @@ export default function HomePage() {
                 <div className="bg-gradient-to-br from-white/98 to-white/90 backdrop-blur-md p-10 rounded-2xl shadow-lg border border-white/30">
                   <div className="text-center mb-8">
                     <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text text-transparent mb-2">
-                      {selectedCard === null ? 'Make Your Estimate' : 'Your Selection'}
+                      Make Your Estimate
                     </h2>
                     <p className="text-gray-500 font-medium text-sm">
-                      {selectedCard === null ? 'Choose a number to estimate' : 'Click Change to adjust your choice'}
+                      Choose a number to estimate
                     </p>
                   </div>
                   
-                  {selectedCard === null || isEditingCard ? (
+                  <div className="space-y-6">
+                    {selectedCard !== null && (
+                      <div className="text-center p-2 bg-blue-50 rounded-lg border border-blue-200">
+                        <p className="text-sm text-gray-600">Your Selection: <span className="font-bold text-lg text-blue-600">{selectedCard}</span></p>
+                      </div>
+                    )}
+                    
                     <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
                       {FIBONACCI_CARDS.map((value) => (
                         <button key={value} onClick={() => {
                           handleCardSelect(value);
                           setIsEditingCard(false);
-                        }} className={`aspect-[3/4] card-elegant disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 ${selectedCard === value && !isEditingCard ? 'ring-8 ring-blue-500 ring-offset-3 scale-110 shadow-2xl bg-gradient-to-br from-blue-100 to-blue-50 hover:scale-115 hover:shadow-3xl hover:ring-blue-600' : 'hover:ring-2 hover:ring-blue-200'} ${swiping && selectedCard !== value ? 'card-swiped card-back' : ''}`}>
-                          <div className={`absolute inset-0 flex items-center justify-center card-number text-white ${selectedCard === value && !isEditingCard ? 'text-3xl font-bold' : 'text-2xl'} ${swiping && selectedCard !== value ? 'opacity-0' : ''}`}>{value}</div>
+                        }} className={`aspect-[3/4] card-elegant disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 ${selectedCard === value ? 'ring-8 ring-blue-500 ring-offset-3 scale-105 shadow-2xl bg-gradient-to-br from-blue-100 to-blue-50 hover:scale-110 hover:shadow-3xl hover:ring-blue-600' : 'hover:ring-2 hover:ring-blue-200'}`}>
+                          <div className={`absolute inset-0 flex items-center justify-center card-number text-white ${selectedCard === value ? 'text-3xl font-bold' : 'text-2xl'}`}>{value}</div>
                         </button>
                       ))}
                     </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-12">
-                      <div className="aspect-[3/4] w-32 card-elegant ring-8 ring-blue-500 ring-offset-3 shadow-2xl bg-gradient-to-br from-blue-100 to-blue-50 mb-8">
-                        <div className="absolute inset-0 flex items-center justify-center card-number text-white text-5xl font-bold">{selectedCard}</div>
-                      </div>
-                      <button onClick={() => setIsEditingCard(true)} className="bg-gradient-to-r from-blue-500 to-teal-500 text-white px-6 py-2.5 rounded-lg font-semibold hover:from-blue-600 hover:to-teal-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 text-sm">
-                        <span className="flex items-center">
-                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                          Change Selection
-                        </span>
-                      </button>
-                    </div>
-                  )}
+                  </div>
                 </div>
               </div>
 
