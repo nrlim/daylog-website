@@ -1,6 +1,11 @@
 {
   "version": 2,
-  "buildCommand": "prisma generate && npm run build",
-  "framework": "express",
-  "outputDirectory": "dist"
+  "builds": [
+    {
+      "src": "package.json"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
 }
