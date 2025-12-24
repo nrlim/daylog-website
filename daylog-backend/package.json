@@ -8,6 +8,7 @@
     "postinstall": "prisma generate",
     "build": "tsc",
     "start": "node dist/server.js",
+    "migrate": "prisma migrate deploy",
     "seed": "ts-node prisma/seed.ts"
   },
   "keywords": [],
