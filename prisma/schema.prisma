@@ -1,0 +1,122 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String
+  email     String?  @unique
+  role      String   @default("member") // admin, member
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  teamMembers TeamMember[]
+  activities  Activity[]
+  votes       Vote[]
+  wfhRecords  WFHRecord[]
+}
+
+model Team {
+  id                  String   @id @default(uuid())
+  name                String
+  description         String?
+  wfhLimitPerMonth    Int      @default(3) // Work from home limit per month
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  members             TeamMember[]
+  pokerSessions       PokerSession[]
+  wfhRecords          WFHRecord[]
+}
+
+model TeamMember {
+  id        String   @id @default(uuid())
+  userId    String
+  teamId    String
+  role      String   @default("member") // team_admin, member
+  isLead    Boolean  @default(false)    // Is this member a team lead?
+  joinedAt  DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, teamId])
+}
+
+model Activity {
+  id            String   @id @default(uuid())
+  userId        String
+  date          DateTime
+  time          String?  // Time in HH:MM format
+  subject       String   // Subject/title of the activity
+  description   String   // Detailed description
+  status        String   // Done, InProgress, Blocked
+  blockedReason String?  // Reason why activity is blocked
+  isWfh         Boolean  @default(false) // Work from home flag
+  project       String?  // Project name (MZA, ZSMART, CIRRUST, etc.)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model WFHRecord {
+  id        String   @id @default(uuid())
+  userId    String
+  teamId    String
+  date      DateTime // The date of WFH activity
+  month     Int      // Month (1-12)
+  year      Int      // Year
+  createdAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, teamId, date])
+}
+
+model PokerSession {
+  id          String   @id @default(uuid())
+  teamId      String
+  storyName   String
+  description String?
+  status      String   @default("voting") // voting, revealed, completed
+  finalPoints Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  team  Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  votes Vote[]
+}
+
+model Vote {
+  id              String   @id @default(uuid())
+  pokerSessionId  String
+  userId          String
+  points          Int
+  createdAt       DateTime @default(now())
+  
+  session PokerSession @relation(fields: [pokerSessionId], references: [id], onDelete: Cascade)
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([pokerSessionId, userId])
+}
+
+model AnonymousPokerSession {
+  id          String   @id
+  creatorName String
+  participants Json     // Store as JSON array of {name, card, revealed}
+  showResults Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
