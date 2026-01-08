@@ -19,7 +19,7 @@ api.interceptors.request.use(
         token = localStorage.getItem('token');
         redmineCreds = localStorage.getItem('redmine_creds');
       } catch (err) {
-        console.error('[API] Error reading localStorage:', err);
+        // Silently fail if localStorage is not accessible
       }
     }
     
@@ -46,7 +46,7 @@ api.interceptors.request.use(
           }
         }
       } catch (err) {
-        console.error('[API] Error reading cookies:', err);
+        // Silently fail if cookies are not accessible
       }
     }
     
@@ -201,4 +201,40 @@ export const debugAPI = {
   testHeaders: () => {
     return api.get('/debug/headers');
   },
+};
+
+// Points API
+export const pointsAPI = {
+  getUserPoints: (userId: string) => 
+    api.get(`/users/${userId}/points`),
+  givePoints: (userId: string, points: number, description?: string) =>
+    api.post(`/users/${userId}/points`, { points, description }),
+  getPointTransactions: (userId: string) =>
+    api.get(`/users/${userId}/points/transactions`),
+  getAllMembers: () =>
+    api.get('/users'),
+};
+
+// Rewards API
+export const rewardsAPI = {
+  getRewards: () =>
+    api.get('/rewards'),
+  createReward: (name: string, description: string, pointsCost: number, quantity: number, isActive: boolean = true) =>
+    api.post('/rewards', { name, description, pointsCost, quantity, isActive }),
+  getRewardById: (rewardId: string) =>
+    api.get(`/rewards/${rewardId}`),
+  updateReward: (rewardId: string, data: any) =>
+    api.put(`/rewards/${rewardId}`, data),
+  deleteReward: (rewardId: string) =>
+    api.delete(`/rewards/${rewardId}`),
+};
+
+// Redemptions API
+export const redemptionsAPI = {
+  getRedemptions: (personal: boolean = false) =>
+    api.get('/redemptions', { params: { personal } }),
+  redeemReward: (rewardId: string) =>
+    api.post('/redemptions', { rewardId }),
+  updateRedemptionStatus: (redemptionId: string, status: string) =>
+    api.put(`/redemptions/${redemptionId}`, { status }),
 };

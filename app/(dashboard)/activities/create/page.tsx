@@ -52,7 +52,7 @@ export default function CreateActivityPage() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [wfhUsage, setWfhUsage] = useState<{ used: number; limit: number; remaining: number } | null>(null);
+  const [wfhUsage, setWfhUsage] = useState<{ team?: { used: number; limit: number; remaining: number }; personal?: { total: number; used: number; remaining: number }; summary?: { totalUsed: number; totalAvailable: number }; used?: number; limit?: number; remaining?: number } | null>(null);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
 
   useEffect(() => {
@@ -154,15 +154,27 @@ export default function CreateActivityPage() {
     }
 
     // Check WFH limit
-    if (formData.isWfh && wfhUsage && wfhUsage.remaining <= 0) {
-      const errorMsg = `WFH limit exceeded. You have used ${wfhUsage.used}/${wfhUsage.limit} WFH days this month.`;
-      setError(errorMsg);
-      addNotification({
-        type: 'error',
-        title: 'WFH Limit Exceeded',
-        message: errorMsg,
-      });
-      return;
+    if (formData.isWfh && wfhUsage) {
+      // Support both old and new response formats
+      const totalRemaining = wfhUsage.summary?.totalAvailable ? 
+        (wfhUsage.summary.totalAvailable - wfhUsage.summary.totalUsed) : 
+        (wfhUsage.remaining ?? 0);
+      
+      if (totalRemaining <= 0) {
+        const teamUsed = wfhUsage.team?.used ?? wfhUsage.used ?? 0;
+        const teamLimit = wfhUsage.team?.limit ?? wfhUsage.limit ?? 3;
+        const personalUsed = wfhUsage.personal?.used ?? 0;
+        const personalTotal = wfhUsage.personal?.total ?? 0;
+        
+        const errorMsg = `WFH limit exceeded. Team: ${teamUsed}/${teamLimit}, Personal: ${personalUsed}/${personalTotal}`;
+        setError(errorMsg);
+        addNotification({
+          type: 'error',
+          title: 'WFH Limit Exceeded',
+          message: errorMsg,
+        });
+        return;
+      }
     }
 
     setLoading(true);
@@ -347,42 +359,113 @@ export default function CreateActivityPage() {
 
           {/* WFH Quota Display - Main Form */}
           {formData.teamId && wfhUsage && (
-            <div className={`rounded-lg p-5 border-2 ${wfhUsage.remaining > 0 ? 'bg-blue-50 border-blue-300' : 'bg-red-50 border-red-300'}`}>
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className={`text-xs font-semibold uppercase tracking-wide ${wfhUsage.remaining > 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                    WFH Quota Remaining
-                  </p>
-                  <div className="flex items-baseline gap-2 mt-2">
-                    <p className={`text-4xl font-bold ${wfhUsage.remaining > 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                      {wfhUsage.remaining}
-                    </p>
-                    <p className={`text-sm font-medium ${wfhUsage.remaining > 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                      / {wfhUsage.limit} days
-                    </p>
-                  </div>
-                  <p className={`text-xs mt-2 ${wfhUsage.remaining > 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                    {wfhUsage.remaining > 0 
-                      ? `You can log ${wfhUsage.remaining} more WFH activities`
-                      : 'Limit reached - no more WFH activities allowed'}
-                  </p>
-                </div>
-
-                {/* Progress Bar on Right */}
-                <div className="flex-1 flex flex-col items-end gap-2">
-                  <div className="w-full">
-                    <div className="w-full bg-gray-300 rounded-full h-3 overflow-hidden">
-                      <div 
-                        className={`h-3 rounded-full transition-all ${wfhUsage.remaining > 0 ? 'bg-blue-500' : 'bg-red-500'}`}
-                        style={{ width: `${Math.min((wfhUsage.used / wfhUsage.limit) * 100, 100)}%` }}
-                      ></div>
+            <div>
+              {/* Team Quota */}
+              {wfhUsage.team && (
+                <div className={`rounded-lg p-5 border-2 mb-3 ${wfhUsage.team.remaining > 0 ? 'bg-blue-50 border-blue-300' : 'bg-red-50 border-red-300'}`}>
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className={`text-xs font-semibold uppercase tracking-wide ${wfhUsage.team.remaining > 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                        Team WFH Quota
+                      </p>
+                      <div className="flex items-baseline gap-2 mt-2">
+                        <p className={`text-3xl font-bold ${wfhUsage.team.remaining > 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                          {wfhUsage.team.remaining}
+                        </p>
+                        <p className={`text-sm font-medium ${wfhUsage.team.remaining > 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                          / {wfhUsage.team.limit} days
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex-1 flex flex-col items-end gap-2">
+                      <div className="w-full">
+                        <div className="w-full bg-gray-300 rounded-full h-2 overflow-hidden">
+                          <div 
+                            className={`h-2 rounded-full transition-all ${wfhUsage.team.remaining > 0 ? 'bg-blue-500' : 'bg-red-500'}`}
+                            style={{ width: `${Math.min((wfhUsage.team.used / wfhUsage.team.limit) * 100, 100)}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      <p className={`text-xs font-medium ${wfhUsage.team.remaining > 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                        {Math.round((wfhUsage.team.used / wfhUsage.team.limit) * 100)}% used
+                      </p>
                     </div>
                   </div>
-                  <p className={`text-xs font-medium ${wfhUsage.remaining > 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                    {Math.round((wfhUsage.used / wfhUsage.limit) * 100)}% used ({wfhUsage.used}/{wfhUsage.limit})
-                  </p>
                 </div>
-              </div>
+              )}
+
+              {/* Personal Quota */}
+              {wfhUsage.personal && (
+                <div className={`rounded-lg p-5 border-2 ${wfhUsage.personal.remaining > 0 ? 'bg-purple-50 border-purple-300' : 'bg-orange-50 border-orange-300'}`}>
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className={`text-xs font-semibold uppercase tracking-wide ${wfhUsage.personal.remaining > 0 ? 'text-purple-700' : 'text-orange-700'}`}>
+                        Personal WFH Quota (from rewards)
+                      </p>
+                      <div className="flex items-baseline gap-2 mt-2">
+                        <p className={`text-3xl font-bold ${wfhUsage.personal.remaining > 0 ? 'text-purple-600' : 'text-orange-600'}`}>
+                          {wfhUsage.personal.remaining}
+                        </p>
+                        <p className={`text-sm font-medium ${wfhUsage.personal.remaining > 0 ? 'text-purple-600' : 'text-orange-600'}`}>
+                          / {wfhUsage.personal.total} days
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex-1 flex flex-col items-end gap-2">
+                      <div className="w-full">
+                        <div className="w-full bg-gray-300 rounded-full h-2 overflow-hidden">
+                          <div 
+                            className={`h-2 rounded-full transition-all ${wfhUsage.personal.remaining > 0 ? 'bg-purple-500' : 'bg-orange-500'}`}
+                            style={{ width: `${wfhUsage.personal.total > 0 ? Math.min((wfhUsage.personal.used / wfhUsage.personal.total) * 100, 100) : 0}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      <p className={`text-xs font-medium ${wfhUsage.personal.remaining > 0 ? 'text-purple-700' : 'text-orange-700'}`}>
+                        {wfhUsage.personal.total > 0 ? Math.round((wfhUsage.personal.used / wfhUsage.personal.total) * 100) : 0}% used
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Fallback for old format */}
+              {wfhUsage.remaining !== undefined && !wfhUsage.team && (
+                <div className={`rounded-lg p-5 border-2 ${(wfhUsage.remaining ?? 0) > 0 ? 'bg-blue-50 border-blue-300' : 'bg-red-50 border-red-300'}`}>
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className={`text-xs font-semibold uppercase tracking-wide ${(wfhUsage.remaining ?? 0) > 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                        WFH Quota Remaining
+                      </p>
+                      <div className="flex items-baseline gap-2 mt-2">
+                        <p className={`text-4xl font-bold ${(wfhUsage.remaining ?? 0) > 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                          {wfhUsage.remaining ?? 0}
+                        </p>
+                        <p className={`text-sm font-medium ${(wfhUsage.remaining ?? 0) > 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                          / {wfhUsage.limit ?? 3} days
+                        </p>
+                      </div>
+                      <p className={`text-xs mt-2 ${(wfhUsage.remaining ?? 0) > 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                        {(wfhUsage.remaining ?? 0) > 0 
+                          ? `You can log ${wfhUsage.remaining ?? 0} more WFH activities`
+                          : 'Limit reached - no more WFH activities allowed'}
+                      </p>
+                    </div>
+                    <div className="flex-1 flex flex-col items-end gap-2">
+                      <div className="w-full">
+                        <div className="w-full bg-gray-300 rounded-full h-3 overflow-hidden">
+                          <div 
+                            className={`h-3 rounded-full transition-all ${(wfhUsage.remaining ?? 0) > 0 ? 'bg-blue-500' : 'bg-red-500'}`}
+                            style={{ width: `${Math.min(((wfhUsage.used ?? 0) / (wfhUsage.limit ?? 3)) * 100, 100)}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      <p className={`text-xs font-medium ${(wfhUsage.remaining ?? 0) > 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                        {Math.round(((wfhUsage.used ?? 0) / (wfhUsage.limit ?? 3)) * 100)}% used ({wfhUsage.used ?? 0}/{wfhUsage.limit ?? 3})
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -455,16 +538,16 @@ export default function CreateActivityPage() {
           <div className="flex gap-3 pt-8 border-t-2 border-gray-200">
             <button
               type="submit"
-              disabled={loading || (formData.isWfh && wfhUsage ? wfhUsage.remaining <= 0 : false)}
+              disabled={loading || (formData.isWfh && wfhUsage ? (wfhUsage.summary ? (wfhUsage.summary.totalAvailable - wfhUsage.summary.totalUsed) <= 0 : (wfhUsage.remaining ?? 0) <= 0) : false)}
               className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-4 rounded-xl hover:shadow-xl hover:shadow-purple-300 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 text-base"
-              title={formData.isWfh && wfhUsage && wfhUsage.remaining <= 0 ? 'WFH quota exceeded for this month' : ''}
+              title={formData.isWfh && wfhUsage && (wfhUsage.summary ? (wfhUsage.summary.totalAvailable - wfhUsage.summary.totalUsed) <= 0 : (wfhUsage.remaining ?? 0) <= 0) ? 'WFH quota exceeded for this month' : ''}
             >
               {loading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                   <span>Saving...</span>
                 </>
-              ) : formData.isWfh && wfhUsage && wfhUsage.remaining <= 0 ? (
+              ) : formData.isWfh && wfhUsage && (wfhUsage.summary ? (wfhUsage.summary.totalAvailable - wfhUsage.summary.totalUsed) <= 0 : (wfhUsage.remaining ?? 0) <= 0) ? (
                 <>
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M13.477 14.89A6 6 0 112.5 5.5h2.016A6 6 0 0012 4c3.314 0 6 2.686 6 6 0 .26-.016.52-.048.776l2.086-.587A.5.5 0 0121 9.5v-4a.5.5 0 00-.5-.5h-4a.5.5 0 00-.467.683l.72 2.16a.5.5 0 00.466.317h2.01A5 5 0 107 9.5a.5.5 0 00-1 0 6 6 0 106.477-4.61z" clipRule="evenodd" />
@@ -520,9 +603,9 @@ export default function CreateActivityPage() {
               <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
                 {/* Quota Display - Enhanced */}
                 {formData.teamId && wfhUsage && (
-                  <div className={`rounded-lg overflow-hidden border-2 transition-all ${wfhUsage.remaining > 0 ? 'bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-300' : 'bg-gradient-to-br from-red-50 to-red-100/50 border-red-300'}`}>
+                  <div className={`rounded-lg overflow-hidden border-2 transition-all ${(wfhUsage.remaining ?? 0) > 0 ? 'bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-300' : 'bg-gradient-to-br from-red-50 to-red-100/50 border-red-300'}`}>
                     {/* Header */}
-                    <div className={`px-4 py-3 ${wfhUsage.remaining > 0 ? 'bg-blue-100/50' : 'bg-red-100/50'}`}>
+                    <div className={`px-4 py-3 ${(wfhUsage.remaining ?? 0) > 0 ? 'bg-blue-100/50' : 'bg-red-100/50'}`}>
                       <p className="font-bold text-gray-900 text-sm text-center">📊 Your Monthly Quota Status</p>
                     </div>
 
@@ -531,11 +614,11 @@ export default function CreateActivityPage() {
                       {/* Big Number Display */}
                       <div className="text-center">
                         <div className="inline-flex flex-col items-center gap-1">
-                          <div className={`text-4xl font-black ${wfhUsage.remaining > 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                            {wfhUsage.remaining > 0 ? wfhUsage.remaining : '0'}
-                          </div>
-                          <p className={`text-xs font-semibold ${wfhUsage.remaining > 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                            {wfhUsage.remaining === 1 ? 'day remaining' : 'days remaining'}
+                        <div className={`text-4xl font-black ${(wfhUsage.remaining ?? 0) > 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                          {(wfhUsage.remaining ?? 0) > 0 ? (wfhUsage.remaining ?? 0) : '0'}
+                        </div>
+                        <p className={`text-xs font-semibold ${(wfhUsage.remaining ?? 0) > 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                          {(wfhUsage.remaining ?? 0) === 1 ? 'day remaining' : 'days remaining'}
                           </p>
                         </div>
                       </div>
@@ -544,28 +627,28 @@ export default function CreateActivityPage() {
                       <div>
                         <div className="flex justify-between items-center mb-1.5">
                           <p className="text-xs font-semibold text-gray-700">Usage Progress</p>
-                          <p className="text-xs font-bold text-gray-700">{Math.round((wfhUsage.used / wfhUsage.limit) * 100)}%</p>
+                          <p className="text-xs font-bold text-gray-700">{Math.round(((wfhUsage.used ?? 0) / (wfhUsage.limit ?? 1)) * 100)}%</p>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-sm">
                           <div 
-                            className={`h-3 rounded-full transition-all ${wfhUsage.remaining > 0 ? 'bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700' : 'bg-gradient-to-r from-red-500 via-red-600 to-red-700'}`}
-                            style={{ width: `${Math.min((wfhUsage.used / wfhUsage.limit) * 100, 100)}%` }}
+                            className={`h-3 rounded-full transition-all ${(wfhUsage.remaining ?? 0) > 0 ? 'bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700' : 'bg-gradient-to-r from-red-500 via-red-600 to-red-700'}`}
+                            style={{ width: `${Math.min(((wfhUsage.used ?? 0) / (wfhUsage.limit ?? 1)) * 100, 100)}%` }}
                           ></div>
                         </div>
                       </div>
 
                       {/* Status Badge */}
-                      <div className={`px-3 py-2 rounded-lg text-center font-semibold text-xs ${wfhUsage.remaining > 0 ? 'bg-blue-200 text-blue-800' : 'bg-red-200 text-red-800'}`}>
-                        {wfhUsage.remaining > 0 
-                          ? `✓ You can log ${wfhUsage.remaining} more WFH activit${wfhUsage.remaining === 1 ? 'y' : 'ies'} this month`
+                      <div className={`px-3 py-2 rounded-lg text-center font-semibold text-xs ${(wfhUsage.remaining ?? 0) > 0 ? 'bg-blue-200 text-blue-800' : 'bg-red-200 text-red-800'}`}>
+                        {(wfhUsage.remaining ?? 0) > 0 
+                          ? `✓ You can log ${wfhUsage.remaining ?? 0} more WFH activit${(wfhUsage.remaining ?? 0) === 1 ? 'y' : 'ies'} this month`
                           : '⛔ WFH quota limit reached for this month'}
                       </div>
 
                       {/* Info Message */}
-                      <div className={`px-3 py-2 rounded-lg text-xs font-medium ${wfhUsage.remaining > 0 ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>
+                      <div className={`px-3 py-2 rounded-lg text-xs font-medium ${(wfhUsage.remaining ?? 0) > 0 ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>
                         <p>
-                          {wfhUsage.remaining > 0 
-                            ? `${Math.ceil((wfhUsage.remaining / wfhUsage.limit) * 100)}% of your quota available`
+                          {(wfhUsage.remaining ?? 0) > 0 
+                            ? `${Math.ceil(((wfhUsage.remaining ?? 0) / (wfhUsage.limit ?? 1)) * 100)}% of your quota available`
                             : 'No WFH activities can be logged until next month'}
                         </p>
                       </div>

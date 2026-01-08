@@ -80,8 +80,8 @@ export async function POST(request: NextRequest) {
 
       // Only create WFH record if it doesn't exist
       if (!existingWfhRecord) {
-        // Count current WFH records for this month
-        const wfhCount = await prisma.wFHRecord.count({
+        // Count current team-based WFH records for this month
+        const teamWfhCount = await prisma.wFHRecord.count({
           where: {
             userId: auth.userId,
             teamId,
@@ -96,15 +96,52 @@ export async function POST(request: NextRequest) {
           select: { wfhLimitPerMonth: true },
         });
 
-        const limit = team?.wfhLimitPerMonth ?? config.defaultWfhLimitPerMonth;
+        const teamLimit = team?.wfhLimitPerMonth ?? config.defaultWfhLimitPerMonth;
 
-        // Check if adding this WFH day would exceed the limit
-        if (wfhCount >= limit) {
+        // Get personal WFH quota for this month
+        const personalQuota = await prisma.userWFHQuota.findUnique({
+          where: {
+            userId_month_year: {
+              userId: auth.userId,
+              month,
+              year,
+            },
+          },
+        });
+
+        const personalWfhUsed = personalQuota?.usedDays ?? 0;
+        const personalWfhAvailable = (personalQuota?.totalQuota ?? 0) - personalWfhUsed;
+
+        // Check if total (team + personal) WFH limit exceeded
+        if (teamWfhCount >= teamLimit && personalWfhAvailable <= 0) {
           return NextResponse.json({
-            error: `WFH limit exceeded. You have used ${wfhCount}/${limit} WFH days this month.`,
-            wfhUsed: wfhCount,
-            wfhLimit: limit,
+            error: `WFH limit exceeded. Team: ${teamWfhCount}/${teamLimit}, Personal: ${personalWfhUsed}/${personalQuota?.totalQuota ?? 0}`,
+            teamWfhUsed: teamWfhCount,
+            teamWfhLimit: teamLimit,
+            personalWfhUsed,
+            personalWfhAvailable,
           }, { status: 403 });
+        }
+
+        // Determine if this WFH day uses team quota or personal quota
+        let usesPersonalQuota = false;
+        if (teamWfhCount >= teamLimit && personalWfhAvailable > 0) {
+          usesPersonalQuota = true;
+          // Update personal quota usage
+          await prisma.userWFHQuota.update({
+            where: {
+              userId_month_year: {
+                userId: auth.userId,
+                month,
+                year,
+              },
+            },
+            data: {
+              usedDays: {
+                increment: 1,
+              },
+            },
+          });
         }
 
         // Create WFH record

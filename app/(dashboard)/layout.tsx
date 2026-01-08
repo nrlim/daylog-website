@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { authAPI, teamAPI } from '@/lib/api';
 import { useAuthStore, useNotificationStore } from '@/lib/store';
+import ProfileDrawer from '@/components/ProfileDrawer';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -54,34 +55,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     checkAuth();
   }, [router, setUser, addNotification]);
 
-  const handleLogout = async () => {
-    try {
-      // Clear user from store immediately to prevent further API calls
-      setUser(null);
-      
-      // Clear token from storage
-      localStorage.removeItem('token');
-      sessionStorage.removeItem('token');
-      
-      // Call logout endpoint (non-blocking)
-      try {
-        await authAPI.logout();
-      } catch (err) {
-        // Continue even if logout API fails
-      }
-      
-      // Redirect to home
-      router.push('/');
-    } catch (error) {
-      console.error('Logout error:', error);
-      // Clear token and redirect even if error occurs
-      localStorage.removeItem('token');
-      sessionStorage.removeItem('token');
-      setUser(null);
-      router.push('/');
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
@@ -123,6 +96,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   className="text-blue-100 hover:text-white transition-colors font-semibold text-sm"
                 >
                   Redmine Tickets
+                </Link>
+                <Link
+                  href="/rewards"
+                  className="text-blue-100 hover:text-white transition-colors font-semibold text-sm"
+                >
+                  Rewards
                 </Link>
                 {user?.role === 'admin' && (
                   <>
@@ -167,15 +146,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
 
             {/* Logout Button */}
-            <button
-              onClick={handleLogout}
-              className="bg-white/20 hover:bg-white/30 text-white px-5 py-2.5 rounded-lg transition-all duration-200 font-semibold text-sm border border-white/30 hover:border-white/50 flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-              </svg>
-              Logout
-            </button>
+            <ProfileDrawer />
           </div>
         </div>
       </nav>

@@ -17,13 +17,18 @@ model User {
   password  String
   email     String?  @unique
   role      String   @default("member") // admin, member
+  points    Int      @default(0)         // User's total points
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
-  teamMembers TeamMember[]
-  activities  Activity[]
-  votes       Vote[]
-  wfhRecords  WFHRecord[]
+  teamMembers         TeamMember[]
+  activities          Activity[]
+  votes               Vote[]
+  wfhRecords          WFHRecord[]
+  wfhQuotas           UserWFHQuota[]
+  pointTransactions   PointTransaction[]
+  adminPointTransactions PointTransaction[] @relation("adminPointTransactions")
+  redemptions         Redemption[]
 }
 
 model Team {
@@ -119,4 +124,60 @@ model AnonymousPokerSession {
   showResults Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model PointTransaction {
+  id          String   @id @default(uuid())
+  userId      String
+  adminId     String
+  points      Int
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  user  User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  admin User @relation("adminPointTransactions", fields: [adminId], references: [id], onDelete: Cascade)
+}
+model Reward {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  pointsCost  Int      // Points required to redeem
+  quantity    Int      @default(-1)  // -1 means unlimited
+  isActive    Boolean  @default(true)
+  expiresAt   DateTime?               // When this reward expires (null = no expiration)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  redemptions Redemption[]
+}
+
+model Redemption {
+  id        String   @id @default(uuid())
+  userId    String
+  rewardId  String
+  status    String   @default("pending") // pending, approved, rejected, completed, expired
+  isActivated Boolean @default(false)   // For WFH rewards: whether user has activated it for current month
+  activatedAt DateTime?                 // When the reward was activated
+  expiresAt DateTime?                   // When this redemption expires (null = uses reward's expiration)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reward Reward @relation(fields: [rewardId], references: [id], onDelete: Cascade)
+}
+
+model UserWFHQuota {
+  id        String   @id @default(uuid())
+  userId    String
+  month     Int      // 1-12
+  year      Int      // YYYY
+  totalQuota Int     @default(0)  // Total personal WFH quota for this month (from rewards)
+  usedDays  Int      @default(0)  // How many personal WFH days used this month
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, month, year])
 }

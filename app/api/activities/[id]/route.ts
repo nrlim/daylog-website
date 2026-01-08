@@ -70,7 +70,8 @@ export async function PUT(
       });
 
       if (!existingWfhRecord) {
-        const wfhCount = await prisma.wFHRecord.count({
+        // Count current team-based WFH records for this month
+        const teamWfhCount = await prisma.wFHRecord.count({
           where: {
             userId: auth.userId,
             teamId,
@@ -84,14 +85,50 @@ export async function PUT(
           select: { wfhLimitPerMonth: true },
         });
 
-        const limit = team?.wfhLimitPerMonth || 3;
+        const teamLimit = team?.wfhLimitPerMonth || 3;
 
-        if (wfhCount >= limit) {
+        // Get personal WFH quota for this month
+        const personalQuota = await prisma.userWFHQuota.findUnique({
+          where: {
+            userId_month_year: {
+              userId: auth.userId,
+              month,
+              year,
+            },
+          },
+        });
+
+        const personalWfhUsed = personalQuota?.usedDays ?? 0;
+        const personalWfhAvailable = (personalQuota?.totalQuota ?? 0) - personalWfhUsed;
+
+        // Check if total (team + personal) WFH limit exceeded
+        if (teamWfhCount >= teamLimit && personalWfhAvailable <= 0) {
           return NextResponse.json({
-            error: `WFH limit exceeded. You have used ${wfhCount}/${limit} WFH days this month.`,
-            wfhUsed: wfhCount,
-            wfhLimit: limit,
+            error: `WFH limit exceeded. Team: ${teamWfhCount}/${teamLimit}, Personal: ${personalWfhUsed}/${personalQuota?.totalQuota ?? 0}`,
+            teamWfhUsed: teamWfhCount,
+            teamWfhLimit: teamLimit,
+            personalWfhUsed,
+            personalWfhAvailable,
           }, { status: 403 });
+        }
+
+        // Determine if this WFH day uses team quota or personal quota
+        if (teamWfhCount >= teamLimit && personalWfhAvailable > 0) {
+          // Update personal quota usage
+          await prisma.userWFHQuota.update({
+            where: {
+              userId_month_year: {
+                userId: auth.userId,
+                month,
+                year,
+              },
+            },
+            data: {
+              usedDays: {
+                increment: 1,
+              },
+            },
+          });
         }
 
         await prisma.wFHRecord.create({

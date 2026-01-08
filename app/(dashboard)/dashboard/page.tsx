@@ -28,11 +28,16 @@ export default function DashboardPage() {
       if (teams.length > 0) {
         try {
           const wfhResponse = await teamAPI.getWfhUsage(teams[0].id);
+          // API returns { team: {...}, personal: {...}, summary: {...} }
           setWfhUsage(wfhResponse.data);
         } catch (wfhError) {
           console.error('Failed to load WFH usage:', wfhError);
           // Set default values if fetch fails
-          setWfhUsage({ used: 0, limit: 0, remaining: 0 });
+          setWfhUsage({ 
+            team: { used: 0, limit: 0, remaining: 0 },
+            personal: { used: 0, total: 0, remaining: 0 },
+            summary: { totalUsed: 0, totalAvailable: 0 },
+          } as any);
         }
       }
     } catch (error) {
@@ -165,8 +170,10 @@ export default function DashboardPage() {
           <div className="text-right">
             {wfhUsage ? (
               <>
-                <p className="text-4xl font-bold text-blue-600">{wfhUsage.remaining}</p>
-                <p className="text-sm text-gray-600">days remaining</p>
+                <p className="text-4xl font-bold text-blue-600">
+                  {(wfhUsage as any).team?.remaining || 0}
+                </p>
+                <p className="text-sm text-gray-600">team days remaining</p>
               </>
             ) : (
               <p className="text-sm text-gray-500">Loading...</p>
@@ -174,19 +181,54 @@ export default function DashboardPage() {
           </div>
         </div>
         {wfhUsage ? (
-          <div className="mt-6 grid grid-cols-3 gap-4">
-            <div className="text-center">
-              <p className="text-xs text-gray-600 font-medium">Used</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">{wfhUsage.used}</p>
+          <div className="mt-6 space-y-6">
+            {/* Team Quota */}
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-4">Team Quota</h4>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="text-center">
+                  <p className="text-xs text-gray-600 mb-1">Used</p>
+                  <p className="text-xl font-bold text-gray-900">{(wfhUsage as any).team?.used || 0}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-gray-600 mb-1">Limit</p>
+                  <p className="text-xl font-bold text-gray-900">{(wfhUsage as any).team?.limit || 0}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-gray-600 mb-1">Usage</p>
+                  <p className="text-xl font-bold text-gray-900">
+                    {(wfhUsage as any).team?.limit 
+                      ? Math.round(((wfhUsage as any).team?.used / (wfhUsage as any).team?.limit) * 100) 
+                      : 0}%
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="text-center border-l border-r border-gray-200">
-              <p className="text-xs text-gray-600 font-medium">Total</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">{wfhUsage.limit}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-xs text-gray-600 font-medium">Usage %</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">{Math.round((wfhUsage.used / wfhUsage.limit) * 100)}%</p>
-            </div>
+
+            {/* Personal Quota */}
+            {(wfhUsage as any).personal?.total > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-4">Personal Quota</h4>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <p className="text-xs text-gray-600 mb-1">Used</p>
+                    <p className="text-xl font-bold text-gray-900">{(wfhUsage as any).personal?.used || 0}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-gray-600 mb-1">Total</p>
+                    <p className="text-xl font-bold text-gray-900">{(wfhUsage as any).personal?.total || 0}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-gray-600 mb-1">Usage</p>
+                    <p className="text-xl font-bold text-gray-900">
+                      {(wfhUsage as any).personal?.total 
+                        ? Math.round(((wfhUsage as any).personal?.used / (wfhUsage as any).personal?.total) * 100) 
+                        : 0}%
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="mt-6 text-center py-4">
