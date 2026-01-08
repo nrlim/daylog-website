@@ -15,7 +15,7 @@ const CACHE_TTL = 3600000; // 1 hour in milliseconds
 
 // Request timeout constants
 const REDMINE_TIMEOUT = 8000; // 8 seconds
-const QUERY_TIMEOUT = 30000; // 30 seconds
+const QUERY_TIMEOUT = 45000; // 45 seconds (increased from 30s for reliability)
 
 /**
  * Create Redmine API headers - supports both API Key and Basic Auth
@@ -238,21 +238,26 @@ async function batchFetchRedmineIssues(usernames: string[], dateFrom: string, da
  * Process Redmine stats for a single user
  */
 function processRedmineStats(issues: any[], closedIssues: any[]) {
-  const newStatuses = [1, 'New', 'new', 'NEW'];
-  const inProgressStatuses = [2, 'In Progress', 'in progress', 'IN PROGRESS', 'InProgress'];
+  const newStatusIds = [1]; // Status ID for "New"
+  const newStatusNames = ['new']; // Status name patterns (lowercased)
+  
+  const inProgressStatusIds = [2]; // Status ID for "In Progress"
+  const inProgressStatusNames = ['in progress', 'inprogress', 'testing']; // Status name patterns (lowercased)
   
   const newIssuesCount = issues.filter((issue: any) => {
-    const statusName = issue.status?.name?.toString().toLowerCase();
+    const statusName = issue.status?.name?.toString().toLowerCase().trim();
     const statusId = issue.status?.id;
-    return newStatuses.includes(statusId) || 
-           newStatuses.some(s => typeof s === 'string' && statusName?.includes(s.toLowerCase()));
+    // Check by ID first, then by exact name match
+    return newStatusIds.includes(statusId) || 
+           newStatusNames.some(s => statusName === s);
   }).length;
   
   const inProgressIssuesCount = issues.filter((issue: any) => {
-    const statusName = issue.status?.name?.toString().toLowerCase();
+    const statusName = issue.status?.name?.toString().toLowerCase().trim();
     const statusId = issue.status?.id;
-    return inProgressStatuses.includes(statusId) || 
-           inProgressStatuses.some(s => typeof s === 'string' && statusName?.includes(s.toLowerCase()));
+    // Check by ID first, then by exact name match
+    return inProgressStatusIds.includes(statusId) || 
+           inProgressStatusNames.some(s => statusName === s);
   }).length;
   
   // Use actual closed issues count from separate query
@@ -306,24 +311,8 @@ function calculateProductivityMetrics(
     ).toFixed(1)));
   }
 
-  // Option 2: Weighted Performance - Same logic as Option 1
-  const daylogCompletionRate = Math.min(100, daylogActivities.length > 0
-    ? parseFloat(((daylogCompleted / daylogActivities.length) * 100).toFixed(1))
-    : 0);
-  const redmineCompletionRate = Math.min(100, redmineIssues.length > 0
-    ? parseFloat(((redmineCompleted / redmineIssues.length) * 100).toFixed(1))
-    : 0);
-  
-  let option2Score: number;
-  if (daylogActivities.length === 0) {
-    // No daylog tasks - use Redmine rate as 100% trust
-    option2Score = Math.min(100, redmineCompletionRate);
-  } else {
-    // Has daylog tasks - use weighted formula
-    option2Score = Math.min(100, parseFloat((
-      (redmineCompletionRate * REDMINE_WEIGHT) + (daylogCompletionRate * DAYLOG_WEIGHT)
-    ).toFixed(1)));
-  }
+  // Option 2: Weighted Performance - Same logic as Option 1 (duplicate calculation removed)
+  const option2Score = option1Score;
 
   // Option 3: Time-based Efficiency
   let option3Data = {
@@ -334,65 +323,92 @@ function calculateProductivityMetrics(
     timeEfficiencyScore: 0,
   };
 
-  // Calculate daylog durations (using updatedAt as completion time)
+  // Calculate daylog durations (using actual start time and completion time)
+  // Convert to minutes (keep as minutes for better precision)
+  const WORKING_MINUTES_PER_DAY = 480; // 8 hours = 480 minutes
+  
   const completedDaylogDurations = daylogActivities
-    .filter((a) => a.status?.toLowerCase() === 'done' && a.updatedAt && a.createdAt)
-    .map((a) => ({
-      duration: (new Date(a.updatedAt).getTime() - new Date(a.createdAt).getTime()) / (1000 * 60), // minutes
-      isCompleted: true,
-    }));
+    .filter((a) => a.status?.toLowerCase() === 'done' && a.updatedAt)
+    .map((a) => {
+      // Calculate actual start time: use date + time if available, otherwise use createdAt
+      let startTime: Date;
+      if (a.date && a.time) {
+        // Parse date (YYYY-MM-DD) and time (HH:MM) to create a datetime
+        const [hours, minutes] = a.time.split(':').map(Number);
+        startTime = new Date(a.date);
+        startTime.setHours(hours, minutes, 0, 0);
+      } else {
+        startTime = new Date(a.createdAt);
+      }
+      
+      // Completion time is when user marked as done (updatedAt)
+      const completionTime = new Date(a.updatedAt);
+      
+      // Calculate duration in minutes
+      const durationMinutes = Math.max(1, (completionTime.getTime() - startTime.getTime()) / (1000 * 60));
+      
+      return {
+        duration: durationMinutes, // in minutes
+        isCompleted: true,
+      };
+    });
 
-  const inProgressDaylogDurations = daylogActivities
-    .filter((a) => a.status?.toLowerCase() !== 'done' && a.createdAt)
-    .map((a) => ({
-      duration: (new Date().getTime() - new Date(a.createdAt).getTime()) / (1000 * 60), // minutes
-      isCompleted: false,
-    }));
-
-  option3Data.daylogDurations = [...completedDaylogDurations, ...inProgressDaylogDurations];
-  option3Data.avgDaylogDuration = option3Data.daylogDurations.length > 0
-    ? option3Data.daylogDurations.reduce((sum, d) => sum + d.duration, 0) / option3Data.daylogDurations.length
+  option3Data.daylogDurations = completedDaylogDurations;
+  option3Data.avgDaylogDuration = completedDaylogDurations.length > 0
+    ? completedDaylogDurations.reduce((sum, d) => sum + d.duration, 0) / completedDaylogDurations.length
     : 0;
 
   // Calculate redmine durations (using closed_on - created_on for closed issues)
+  // Create a Set for O(1) lookup instead of using .some()
+  const closedRedmineIds = new Set(redmineClosedIssues.map((i) => i.id));
+  
   const closedRedmineDurations = redmineClosedIssues
     .filter((i) => i.created_on && i.closed_on)
-    .map((i) => ({
-      duration: (new Date(i.closed_on).getTime() - new Date(i.created_on).getTime()) / (1000 * 60 * 60), // hours
-      isCompleted: true,
-    }));
+    .map((i) => {
+      const durationHours = (new Date(i.closed_on).getTime() - new Date(i.created_on).getTime()) / (1000 * 60 * 60);
+      const durationMinutes = Math.max(1, durationHours * 60); // Convert to minutes
+      return {
+        duration: durationMinutes, // in minutes
+        isCompleted: true,
+      };
+    });
 
   const openRedmineDurations = redmineIssues
-    .filter((i) => !redmineClosedIssues.some((c) => c.id === i.id) && i.created_on)
-    .map((i) => ({
-      duration: (new Date().getTime() - new Date(i.created_on).getTime()) / (1000 * 60 * 60), // hours
-      isCompleted: false,
-    }));
+    .filter((i) => !closedRedmineIds.has(i.id) && i.created_on)
+    .map((i) => {
+      const durationHours = (new Date().getTime() - new Date(i.created_on).getTime()) / (1000 * 60 * 60);
+      const durationMinutes = Math.max(1, durationHours * 60); // Convert to minutes
+      return {
+        duration: durationMinutes, // in minutes
+        isCompleted: false,
+      };
+    });
 
   option3Data.redmineDurations = [...closedRedmineDurations, ...openRedmineDurations];
-  option3Data.avgRedmineDuration = option3Data.redmineDurations.length > 0
-    ? option3Data.redmineDurations.reduce((sum, d) => sum + d.duration, 0) / option3Data.redmineDurations.length
+  option3Data.avgRedmineDuration = closedRedmineDurations.length > 0
+    ? closedRedmineDurations.reduce((sum, d) => sum + d.duration, 0) / closedRedmineDurations.length
     : 0;
 
-  // Time efficiency: completed tasks / total time spent
+  // Time efficiency: completed tasks / total working minutes spent
+  // This measures tasks completed per working period (scaled to per working day)
   const completedCount = completedDaylogDurations.length + closedRedmineDurations.length;
-  const totalMinutes = option3Data.daylogDurations.reduce((sum, d) => sum + d.duration, 0) 
-                     + (option3Data.redmineDurations.reduce((sum, d) => sum + d.duration, 0) * 60); // convert hours to minutes
+  const totalWorkingMinutes = completedDaylogDurations.reduce((sum, d) => sum + d.duration, 0) 
+                            + closedRedmineDurations.reduce((sum, d) => sum + d.duration, 0);
   
-  const rawTimeEfficiencyScore = totalMinutes > 0 
-    ? (completedCount / (totalMinutes / 60)) * 100 // tasks per hour * 100
-    : 0;
+  // Convert to working days for calculation
+  const totalWorkingDays = totalWorkingMinutes / WORKING_MINUTES_PER_DAY;
+  
+  // Tasks per working day, scaled to 0-100 (assume 4-5 tasks per day is excellent = 100)
+  const tasksPerWorkingDay = totalWorkingDays > 0 ? completedCount / totalWorkingDays : 0;
+  const rawTimeEfficiencyScore = Math.min(100, (tasksPerWorkingDay / 4) * 100); // 4 tasks/day = 100 points
   
   option3Data.timeEfficiencyScore = Math.min(100, parseFloat(rawTimeEfficiencyScore.toFixed(1)));
 
-  // Final Combined Score: Weighted average of all three options
-  // Weights: 40% Combined Completion Rate + 35% Weighted Performance + 25% Time-based Efficiency
-  // This gives priority to completion metrics while valuing efficiency
-  const finalScore = Math.min(100, parseFloat((
-    (option1Score * 0.40) + 
-    (option2Score * 0.35) + 
-    (option3Data.timeEfficiencyScore * 0.25)
-  ).toFixed(1)));
+  // Final Combined Score: 
+  // - If NO daylog activities: 100% trust Redmine score
+  // - If HAS daylog activities: 75% Redmine + 25% Daylog (already calculated in option1)
+  // Option 1 (Combined Completion Rate) already handles these weights correctly
+  const finalScore = option1Score;
 
   return {
     option1: { score: option1Score, label: 'Combined Completion Rate' },
@@ -405,8 +421,12 @@ function calculateProductivityMetrics(
     finalScore: {
       score: finalScore,
       label: 'Final Productivity Score',
-      description: 'Intelligent combination of all three metrics with Redmine/Daylog weights (75%/25%) - 40% Combined Rate + 35% Weighted + 25% Efficiency',
-      weights: { completionRate: 0.40, weighted: 0.35, efficiency: 0.25, redmine: 0.75, daylog: 0.25 }
+      description: daylogActivities.length === 0 
+        ? 'Redmine-only (100% weight): Calculated from Redmine issue completion rate'
+        : 'Combined score (75% Redmine + 25% Daylog): Weighted completion rate',
+      weights: daylogActivities.length === 0
+        ? { redmine: 1.0 }
+        : { redmine: 0.75, daylog: 0.25 }
     }
   };
 }
@@ -497,6 +517,8 @@ export async function GET(
         id: true,
         userId: true, 
         status: true,
+        date: true,
+        time: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -551,22 +573,23 @@ export async function GET(
         : 0);
 
       // Calculate all three productivity options
+      // Pass all redmine issues (open + closed) for accurate calculation
+      const allRedmineIssues = [...memberIssuesData.issues, ...memberIssuesData.closedIssues];
+      
       const productivityMetrics = calculateProductivityMetrics(
         memberActivities,
-        memberIssuesData.issues,
+        allRedmineIssues,
         memberIssuesData.closedIssues
       );
 
       return {
         memberId: member.user.id,
         username: member.user.username,
-        email: member.user.email,
         role: member.role,
         isLead: member.isLead,
         // Flatten daylog stats
         totalTasks,
         completedTasks,
-        inProgressTasks,
         blockedTasks: blockedActivities.length,
         completionRate: daylogCompletionRate,
         // Include Redmine stats
@@ -577,8 +600,19 @@ export async function GET(
           closedIssues: redmineStats.closedIssues,
           completionRate: redmineCompletionRate,
         },
-        // Productivity metrics (all three options)
-        productivityMetrics,
+        // Productivity metrics (only send necessary fields, remove duration arrays)
+        productivityMetrics: {
+          option1: productivityMetrics.option1,
+          option2: productivityMetrics.option2,
+          option3: {
+            score: productivityMetrics.option3.score,
+            label: productivityMetrics.option3.label,
+            avgDaylogDuration: productivityMetrics.option3.avgDaylogDuration,
+            avgRedmineDuration: productivityMetrics.option3.avgRedmineDuration,
+            timeEfficiencyScore: productivityMetrics.option3.timeEfficiencyScore,
+          },
+          finalScore: productivityMetrics.finalScore,
+        },
       };
       })
 

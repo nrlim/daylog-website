@@ -16,6 +16,14 @@ export async function GET(
     const date = searchParams.get('date');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const memberId = searchParams.get('memberId');
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '9', 10);
+
+    // Validate page and limit
+    const validPage = Math.max(1, page);
+    const validLimit = Math.min(100, Math.max(1, limit));
+    const skip = (validPage - 1) * validLimit;
 
     // Check if the user is a team member (lead or admin)
     const teamMember = await prisma.teamMember.findUnique({
@@ -45,7 +53,18 @@ export async function GET(
 
     // Filter out admin users
     const nonAdminMembers = teamMembers.filter((m: typeof teamMembers[0]) => m.user.role !== 'admin');
-    const memberIds = nonAdminMembers.map((m: typeof nonAdminMembers[0]) => m.user.id);
+    let memberIds = nonAdminMembers.map((m: typeof nonAdminMembers[0]) => m.user.id);
+
+    // Server-side member filtering
+    if (memberId) {
+      // Verify that the requested memberId is a valid team member
+      const isValidMember = nonAdminMembers.some((m: typeof nonAdminMembers[0]) => m.user.id === memberId);
+      if (!isValidMember) {
+        return NextResponse.json({ error: 'Invalid member ID for this team' }, { status: 400 });
+      }
+      // Filter to only the requested member
+      memberIds = [memberId];
+    }
 
     // Build query for activities
     const whereClause: any = {
@@ -66,14 +85,23 @@ export async function GET(
       if (endDate) whereClause.date.lte = new Date(endDate);
     }
 
-    // Get activities of all team members
+    // Get total count
+    const total = await prisma.activity.count({
+      where: whereClause,
+    });
+
+    // Get activities of all team members with pagination
     const activities = await prisma.activity.findMany({
       where: whereClause,
       include: {
         user: { select: { id: true, username: true, email: true } },
       },
       orderBy: { date: 'desc' },
+      skip,
+      take: validLimit,
     });
+
+    const totalPages = Math.ceil(total / validLimit);
 
     return NextResponse.json({
       team: {
@@ -88,6 +116,12 @@ export async function GET(
         isLead: m.isLead,
       })),
       activities,
+      pagination: {
+        page: validPage,
+        limit: validLimit,
+        total,
+        totalPages,
+      },
     });
   } catch (error: any) {
     console.error('Error fetching team activities:', error);

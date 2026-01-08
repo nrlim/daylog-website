@@ -16,6 +16,13 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get('userId');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '9', 10);
+
+    // Validate page and limit
+    const validPage = Math.max(1, page);
+    const validLimit = Math.min(100, Math.max(1, limit));
+    const skip = (validPage - 1) * validLimit;
 
     const where: any = {};
     if (userId) where.userId = userId;
@@ -25,6 +32,9 @@ export async function GET(request: NextRequest) {
       if (endDate) where.date.lte = new Date(endDate);
     }
 
+    // Get total count
+    const total = await prisma.activity.count({ where });
+
     const activities = await prisma.activity.findMany({
       where,
       include: {
@@ -33,9 +43,21 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { date: 'desc' },
+      skip,
+      take: validLimit,
     });
 
-    return NextResponse.json({ activities });
+    const totalPages = Math.ceil(total / validLimit);
+
+    return NextResponse.json({ 
+      activities,
+      pagination: {
+        page: validPage,
+        limit: validLimit,
+        total,
+        totalPages,
+      }
+    });
   } catch (error: any) {
     return NextResponse.json({ error: 'Failed to get activities' }, { status: 500 });
   }

@@ -154,10 +154,10 @@ export const teamAPI = {
 
 // Activity API
 export const activityAPI = {
-  getActivities: (params?: { userId?: string; startDate?: string; endDate?: string }) =>
+  getActivities: (params?: { userId?: string; startDate?: string; endDate?: string; page?: number; limit?: number }) =>
     api.get('/activities', { params }),
   getActivityById: (id: string) => api.get(`/activities/${id}`),
-  getTeamMembersActivities: (teamId: string, params?: { startDate?: string; endDate?: string; date?: string }) =>
+  getTeamMembersActivities: (teamId: string, params?: { startDate?: string; endDate?: string; date?: string; memberId?: string; page?: number; limit?: number }) =>
     api.get(`/activities/team/${teamId}`, { params }),
   createActivity: (data: { date: string; time?: string; subject: string; description: string; status: string; isWfh?: boolean; teamId?: string; project?: string }) =>
     api.post('/activities', data),

@@ -25,6 +25,7 @@ export interface TeamMember {
   user: {
     id: string;
     username: string;
+    role?: string;
   };
 }
 

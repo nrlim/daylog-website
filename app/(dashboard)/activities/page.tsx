@@ -43,6 +43,7 @@ export default function ActivitiesPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'InProgress' | 'Done' | 'Blocked'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 9;
+  const [pagination, setPagination] = useState<{ page: number; limit: number; total: number; totalPages: number } | null>(null);
 
   useEffect(() => {
     const init = async () => {
@@ -58,18 +59,17 @@ export default function ActivitiesPage() {
     if (currentUser && teams.length >= 0) {
       loadActivities();
     }
-  }, [currentUser, activityTab, teams]);
+  }, [currentUser, activityTab, teams, currentPage, statusFilter]);
 
   useEffect(() => {
     filterAndSortActivities();
     setCurrentPage(1);
-  }, [activities, sortOrder, statusFilter, selectedUser]);
+  }, [activities, sortOrder, statusFilter]);
 
   const filterAndSortActivities = () => {
     let filtered = activities.filter((activity) => {
       const statusMatch = statusFilter === 'all' || activity.status === statusFilter;
-      const userMatch = !selectedUser || activity.userId === selectedUser;
-      return statusMatch && userMatch;
+      return statusMatch;
     });
 
     filtered.sort((a, b) => {
@@ -81,11 +81,9 @@ export default function ActivitiesPage() {
     setFilteredActivities(filtered);
   };
 
-  // Pagination calculations
-  const totalPages = Math.ceil(filteredActivities.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedActivities = filteredActivities.slice(startIndex, endIndex);
+  // Use server-side pagination data, fallback to default if not available
+  const totalPages = pagination?.totalPages || Math.ceil(activities.length / itemsPerPage) || 1;
+  const paginatedActivities = activities;
 
   const loadCurrentUser = async () => {
     try {
@@ -119,12 +117,13 @@ export default function ActivitiesPage() {
   };
 
   const loadActivities = async () => {
-    setLoading(true);
+    setApplyingFilters(true);
     try {
       let allActivities: Activity[] = [];
+      let paginationData: any = null;
 
       if (!currentUser) {
-        setLoading(false);
+        setApplyingFilters(false);
         return;
       }
 
@@ -133,8 +132,11 @@ export default function ActivitiesPage() {
           userId: currentUser.id,
           startDate: dateRange.start,
           endDate: dateRange.end,
+          page: currentPage,
+          limit: itemsPerPage,
         });
         allActivities = response.data.activities;
+        paginationData = response.data.pagination;
       } else if (activityTab === 'team') {
         if (!teams || teams.length === 0) {
           setLoading(false);
@@ -148,8 +150,12 @@ export default function ActivitiesPage() {
               const response = await activityAPI.getTeamMembersActivities(team.id, {
                 startDate: dateRange.start,
                 endDate: dateRange.end,
+                memberId: selectedUser || undefined,
+                page: currentPage,
+                limit: itemsPerPage,
               });
               allActivities = allActivities.concat(response.data.activities);
+              paginationData = response.data.pagination;
             } catch (teamError: any) {
               // Continue with next team on error
             }
@@ -165,7 +171,7 @@ export default function ActivitiesPage() {
           if (leadTeams.length === 0) {
             setActivities([]);
             setError('You are not a team lead yet. Assign yourself as a lead in Teams settings.');
-            setLoading(false);
+            setApplyingFilters(false);
             return;
           }
 
@@ -175,8 +181,12 @@ export default function ActivitiesPage() {
               const response = await activityAPI.getTeamMembersActivities(team.id, {
                 startDate: dateRange.start,
                 endDate: dateRange.end,
+                memberId: selectedUser || undefined,
+                page: currentPage,
+                limit: itemsPerPage,
               });
               allActivities = allActivities.concat(response.data.activities);
+              paginationData = response.data.pagination;
             } catch (teamError: any) {
               // Continue with next team on error
             }
@@ -188,6 +198,7 @@ export default function ActivitiesPage() {
       }
 
       setActivities(allActivities);
+      setPagination(paginationData);
       setError(null);
     } catch (error: any) {
       console.error('❌ Error in loadActivities:', error);
@@ -200,6 +211,7 @@ export default function ActivitiesPage() {
       });
     } finally {
       setLoading(false);
+      setApplyingFilters(false);
     }
   };
 
@@ -435,6 +447,7 @@ export default function ActivitiesPage() {
               onClick={() => {
                 setActivityTab('my');
                 setSelectedUser('');
+                setCurrentPage(1);
               }}
               className={`flex-1 px-6 py-3 font-medium transition-all ${
                 activityTab === 'my'
@@ -447,6 +460,7 @@ export default function ActivitiesPage() {
             <button
               onClick={() => {
                 setActivityTab('team');
+                setCurrentPage(1);
               }}
               className={`flex-1 px-6 py-3 font-medium transition-all ${
                 activityTab === 'team'
@@ -497,7 +511,7 @@ export default function ActivitiesPage() {
             </select>
           </div>
 
-          {activityTab === 'team' && isTeamLead && (
+          {activityTab === 'team' && (isTeamLead || currentUser?.role === 'admin') && (
             <div className="relative">
               <select
                 value={selectedUser}
@@ -506,12 +520,14 @@ export default function ActivitiesPage() {
               >
                 <option value="">All Members</option>
                 {teams
-                  .filter(t => t.members.find(m => m.userId === currentUser?.id && m.isLead))
+                  .filter(t => t.members.find(m => m.userId === currentUser?.id && (m.isLead || currentUser?.role === 'admin')))
                   .flatMap(team =>
-                    team.members.map(member => ({
-                      key: member.userId,
-                      username: member.user.username,
-                    }))
+                    team.members
+                      .filter(member => member.user.role !== 'admin')
+                      .map(member => ({
+                        key: member.userId,
+                        username: member.user.username,
+                      }))
                   )
                   .filter((v, i, a) => a.findIndex(t => t.key === v.key) === i)
                   .map(member => (
@@ -563,18 +579,15 @@ export default function ActivitiesPage() {
 
       {/* Loading Overlay Modal */}
       {applyingFilters && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl p-8 flex flex-col items-center gap-4 max-w-sm w-full">
-            <div className="relative w-14 h-14">
-              <svg className="animate-spin h-14 w-14 text-purple-600" fill="none" viewBox="0 0 24 24">
+        <div className="flex items-center justify-center py-12 mb-8">
+          <div className="flex flex-col items-center gap-3">
+            <div className="relative w-10 h-10">
+              <svg className="animate-spin h-10 w-10 text-purple-600" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
             </div>
-            <div className="text-center">
-              <h3 className="text-base font-semibold text-gray-900 mb-1">Loading Activities</h3>
-              <p className="text-sm text-gray-600">Please wait while we fetch your activities...</p>
-            </div>
+            <p className="text-sm text-gray-600 font-medium">Fetching activities...</p>
           </div>
         </div>
       )}
@@ -738,7 +751,8 @@ export default function ActivitiesPage() {
           {totalPages > 1 && (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 flex items-center justify-between">
               <div className="text-sm text-gray-600">
-                Page <span className="font-semibold text-gray-900">{currentPage}</span> of <span className="font-semibold text-gray-900">{totalPages}</span>
+                Page <span className="font-semibold text-gray-900">{currentPage}</span> of <span className="font-semibold text-gray-900">{totalPages}</span> 
+                <span className="text-xs text-gray-500 ml-2">({pagination?.total || activities.length} total)</span>
               </div>
 
               <div className="flex items-center gap-1.5">

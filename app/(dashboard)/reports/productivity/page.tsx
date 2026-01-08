@@ -38,12 +38,10 @@ interface ProductivityMetrics {
 interface MemberMetrics {
   memberId: string;
   username: string;
-  email: string;
   role: string;
   metrics: {
     totalTasks: number;
     completedTasks: number;
-    inProgressTasks: number;
     blockedTasks: number;
     completionRate: number;
     wfhDays: number;
@@ -52,7 +50,6 @@ interface MemberMetrics {
   dbTasks: {
     total: number;
     completed: number;
-    inProgress: number;
     blocked: number;
   };
   redmineStats: {
@@ -622,8 +619,8 @@ export default function ProductivityReportPage() {
                             Task completion velocity based on time duration
                           </p>
                           <div className="text-xs bg-indigo-50 rounded p-2 text-slate-600 space-y-1">
-                            <div><span className="font-semibold">Daylog Avg:</span> {member.productivityMetrics.option3.avgDaylogDuration.toFixed(1)} min</div>
-                            <div><span className="font-semibold">Redmine Avg:</span> {member.productivityMetrics.option3.avgRedmineDuration.toFixed(1)} hrs</div>
+                            <div><span className="font-semibold">Daylog Avg:</span> {member.productivityMetrics.option3.avgDaylogDuration.toFixed(0)} min ({(member.productivityMetrics.option3.avgDaylogDuration / 60).toFixed(1)} hrs)</div>
+                            <div><span className="font-semibold">Redmine Avg:</span> {member.productivityMetrics.option3.avgRedmineDuration.toFixed(0)} min ({(member.productivityMetrics.option3.avgRedmineDuration / 60).toFixed(1)} hrs)</div>
                           </div>
                         </div>
                       </div>
@@ -724,18 +721,12 @@ export default function ProductivityReportPage() {
                               </div>
                             </>
                           )}
+
+
                         </div>
                       </div>
                     </div>
                   </div>
-
-                  {/* Debug log */}
-                  {(() => {
-                    const hasRedmineStats = member.redmineStats !== undefined && member.redmineStats !== null;
-                    const hasRedmineData = hasRedmineStats && (member.redmineStats.assignedIssues > 0 || member.redmineStats.closedIssues > 0 || member.redmineStats.inProgressIssues > 0);
-
-                    return null;
-                  })()}
                 </div>
               </div>
             ))}
