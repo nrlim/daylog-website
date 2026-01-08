@@ -480,7 +480,7 @@ export default function ProductivityReportPage() {
                       </div>
                       <div className="flex-1">
                         <h3 className="font-bold text-lg text-slate-900">{member.username}</h3>
-                        <p className="text-sm text-slate-600">{member.email}</p>
+                        <p className="text-sm text-slate-600">{member.role}</p>
                       </div>
                     </div>
                     <div className="text-center">
