@@ -247,23 +247,23 @@ export default function ProductivityReportPage() {
   const scoringInfo = useMemo(() => ({
     option1: {
       label: 'Weighted Combined Completion Rate',
-      formula: '75% × Redmine Completion Rate + 25% × Daylog Completion Rate (or 100% Redmine if no Daylog tasks)',
-      description: 'Smart weighting that trusts office work (Redmine) more than home work (Daylog)',
+      formula: 'If no Daylog: 100% Redmine Rate | If Daylog exists: (75% × Redmine Rate) + (25% × Daylog Rate)',
+      description: 'Smart weighting that uses Redmine as the primary metric. If no Daylog tasks, trusts Redmine completely. If Daylog exists, combines both with Redmine weighted at 75%',
     },
     option2: {
       label: 'Weighted Performance Score',
-      formula: '75% × Redmine Performance + 25% × Daylog Performance (or 100% Redmine if no Daylog tasks)',
-      description: 'Weighted performance metric combining office and home task efficiency',
+      formula: 'If no Daylog: 100% Redmine Rate | If Daylog exists: (75% × Redmine Rate) + (25% × Daylog Rate)',
+      description: 'Same calculation as Option 1 - an alternative view combining Redmine (75%) and Daylog (25%) completion rates',
     },
     option3: {
       label: 'Time-based Efficiency',
-      formula: 'Total Tasks Completed / Working Hours',
-      description: 'How efficiently each team member completes tasks per hour',
+      formula: 'Tasks Completed / Working Days × 25 (where 4 tasks/day = 100 points)',
+      description: 'Measures task completion velocity based on time spent. Calculated as (Completed Tasks / Total Working Days) normalized to 0-100, assuming 4 tasks per working day equals perfect efficiency',
     },
     final: {
       label: 'Final Productivity Score',
-      formula: '(40% × Option 1) + (35% × Option 2) + (25% × Option 3)',
-      description: 'Composite score combining all three metrics with weighted averages',
+      formula: 'Same as Option 1/2: If no Daylog: 100% Redmine | If Daylog: (75% Redmine) + (25% Daylog)',
+      description: 'Uses the combined completion rate as the primary score. Defaults to Redmine-only when no Daylog tasks, otherwise balances both systems',
     },
   }), []);
 
@@ -516,7 +516,7 @@ export default function ProductivityReportPage() {
                       <div className="text-xs text-slate-600 font-medium">Completed</div>
                     </div>
                     <div className="bg-white rounded-lg p-3 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                      <div className="text-2xl font-bold text-slate-900">{member.metrics.inProgressTasks}</div>
+                      <div className="text-2xl font-bold text-slate-900">{member.redmineStats.inProgressIssues}</div>
                       <div className="text-xs text-slate-600 font-medium">In Progress</div>
                     </div>
                     <div className="bg-white rounded-lg p-3 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
@@ -653,10 +653,6 @@ export default function ProductivityReportPage() {
                             <span className="font-bold text-green-600">{member.dbTasks.completed}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-slate-700">In Progress:</span>
-                            <span className="font-bold text-yellow-600">{member.dbTasks.inProgress}</span>
-                          </div>
-                          <div className="flex justify-between">
                             <span className="text-slate-700">Blocked:</span>
                             <span className="font-bold text-red-600">{member.dbTasks.blocked}</span>
                           </div>
@@ -776,56 +772,57 @@ export default function ProductivityReportPage() {
           Productivity Score Calculation
         </h3>
         <p className="text-sm text-gray-700 mb-4">
-          We provide a final combined score and three different perspectives to evaluate productivity. The final score is calculated using weighted averages of all approaches.
+          The productivity score is calculated using a smart weighting system that prioritizes Redmine (office work) data while considering Daylog (home work) activities when available. The system automatically adjusts based on whether team members have Daylog tasks.
         </p>
         
         <div className="space-y-4 mb-6">
           <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-4 border-2 border-indigo-300 shadow-md">
             <h4 className="font-bold text-indigo-900 mb-2">📊 Final Productivity Score (Recommended)</h4>
             <p className="text-sm text-gray-700 mb-2">
-              An intelligent weighted combination of all three metrics that provides the most balanced assessment of team member productivity.
+              The primary score for evaluating productivity. Uses a smart weighting system that adapts based on whether team members have Daylog tasks or are Redmine-only.
             </p>
-            <p className="text-xs text-gray-600 font-mono bg-white bg-opacity-60 p-2 rounded mb-2">
-              (Option 1 × 40%) + (Option 2 × 35%) + (Option 3 × 25%) = Final Score
-            </p>
-            <div className="text-xs text-gray-600 space-y-1 bg-white bg-opacity-50 p-2 rounded">
-              <div><strong>40% Combined Completion Rate:</strong> Overall task completion regardless of source</div>
-              <div><strong>35% Weighted Performance:</strong> Balanced view of Daylog and Redmine equally</div>
-              <div><strong>25% Time Efficiency:</strong> How quickly tasks are completed (velocity)</div>
+            <div className="text-xs text-gray-600 space-y-2 bg-white bg-opacity-60 p-3 rounded mb-2">
+              <div className="font-semibold text-gray-800">Calculation Logic:</div>
+              <div>• <strong>If NO Daylog Tasks:</strong> Final Score = 100% × Redmine Completion Rate</div>
+              <div>• <strong>If HAS Daylog Tasks:</strong> Final Score = (75% × Redmine Rate) + (25% × Daylog Rate)</div>
             </div>
-            <p className="text-xs text-gray-600 mt-2"><strong>Best for:</strong> Holistic performance evaluation combining all factors</p>
+            <p className="text-xs text-gray-600 mt-2"><strong>Best for:</strong> Overall team member productivity evaluation with Redmine as primary metric</p>
           </div>
 
           <div className="bg-white rounded-lg p-4 border border-blue-200">
             <h4 className="font-semibold text-blue-900 mb-2">Option 1: Weighted Combined Completion Rate</h4>
             <p className="text-sm text-gray-700 mb-2">
-              Combines Daylog and Redmine completion rates with weighted emphasis on Redmine (75%) vs Daylog (25%).
+              Combines Daylog and Redmine completion rates with smart weighting. Uses 100% Redmine when no Daylog tasks exist, otherwise weights Redmine at 75% and Daylog at 25%.
             </p>
             <p className="text-xs text-gray-600 font-mono bg-gray-50 p-2 rounded">
-              (Redmine Rate × 0.75) + (Daylog Rate × 0.25)
+              If no Daylog: 100% × Redmine Rate | If Daylog: (75% × Redmine) + (25% × Daylog)
             </p>
-            <p className="text-xs text-gray-600 mt-2"><strong>Best for:</strong> Overall productivity with Redmine emphasis</p>
+            <p className="text-xs text-gray-600 mt-2"><strong>Best for:</strong> Overall productivity assessment with Redmine priority</p>
           </div>
 
           <div className="bg-white rounded-lg p-4 border border-purple-200">
             <h4 className="font-semibold text-purple-900 mb-2">Option 2: Weighted Performance (Redmine Focus)</h4>
             <p className="text-sm text-gray-700 mb-2">
-              Weights Redmine tasks at 75% and Daylog tasks at 25%, reflecting the primary importance of Redmine in project tracking.
+              An alternative view of the same calculation as Option 1. Emphasizes Redmine (75%) over Daylog (25%) to reflect the primary importance of Redmine in project tracking.
             </p>
             <p className="text-xs text-gray-600 font-mono bg-gray-50 p-2 rounded">
-              (Redmine Completion Rate × 0.75) + (Daylog Completion Rate × 0.25)
+              If no Daylog: 100% × Redmine Rate | If Daylog: (75% × Redmine) + (25% × Daylog)
             </p>
-            <p className="text-xs text-gray-600 mt-2"><strong>Best for:</strong> Redmine-focused performance evaluation</p>
+            <p className="text-xs text-gray-600 mt-2"><strong>Best for:</strong> Project-focused performance evaluation</p>
           </div>
 
           <div className="bg-white rounded-lg p-4 border border-green-200">
             <h4 className="font-semibold text-green-900 mb-2">Option 3: Time-based Efficiency</h4>
             <p className="text-sm text-gray-700 mb-2">
-              Focuses on task completion velocity by analyzing time spent on completed vs. in-progress tasks. Uses timestamps to calculate average task duration and efficiency.
+              Measures task completion velocity by analyzing actual time spent on completed tasks. Normalized to 0-100 where 4 tasks per working day = 100 points (perfect efficiency).
             </p>
-            <p className="text-xs text-gray-600"><strong>Daylog:</strong> Measured in minutes (updatedAt - createdAt)</p>
-            <p className="text-xs text-gray-600 mb-2"><strong>Redmine:</strong> Measured in hours (closed_on - created_on)</p>
-            <p className="text-xs text-gray-600 mt-2"><strong>Best for:</strong> Understanding real work velocity and completion speed</p>
+            <div className="text-xs text-gray-600 space-y-1 bg-gray-50 p-2 rounded">
+              <div><strong>Calculation:</strong> (Completed Tasks / Total Working Days) × 25</div>
+              <div><strong>Daylog:</strong> Measured from start time to completion (updatedAt)</div>
+              <div><strong>Redmine:</strong> Measured from creation (created_on) to closure (closed_on)</div>
+              <div><strong>Working Day:</strong> 480 minutes (8 hours)</div>
+            </div>
+            <p className="text-xs text-gray-600 mt-2"><strong>Best for:</strong> Understanding real work velocity and task completion speed</p>
           </div>
         </div>
 
