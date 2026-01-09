@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Select } from 'antd';
 import { api } from '@/lib/api';
 import { useNotificationStore, useAuthStore } from '@/lib/store';
 
@@ -196,20 +197,24 @@ export default function CreateRedmineTicketPage() {
             {loadingMetadata ? (
               <div className="animate-pulse h-10 bg-gray-200 rounded-lg"></div>
             ) : (
-              <select
-                value={formData.project_id}
-                onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                required
-              >
-                <option value="">Select a project...</option>
-                {filteredProjects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                    {project.is_private && ' 🔒'}
-                  </option>
-                ))}
-              </select>
+              <Select
+                showSearch
+                placeholder="Select a project"
+                optionFilterProp="children"
+                value={formData.project_id || undefined}
+                onChange={(value) => setFormData({ ...formData, project_id: value })}
+                filterOption={(input, option) =>
+                  (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+                options={filteredProjects.map((project) => ({
+                  value: project.id.toString(),
+                  label: `${project.name} ${project.is_private ? '🔒' : ''}`,
+                  name: project.name,
+                  identifier: project.identifier,
+                }))}
+                style={{ width: '100%' }}
+                size="large"
+              />
             )}
           </div>
 
@@ -221,19 +226,38 @@ export default function CreateRedmineTicketPage() {
             {loadingMetadata ? (
               <div className="animate-pulse h-10 bg-gray-200 rounded-lg"></div>
             ) : (
-              <select
-                value={formData.tracker_id}
-                onChange={(e) => setFormData({ ...formData, tracker_id: e.target.value })}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                {trackers.map((tracker) => (
-                  <option key={tracker.id} value={tracker.id}>
-                    {tracker.name}
-                  </option>
-                ))}
-              </select>
+              <Select
+                placeholder="Select issue type"
+                value={formData.tracker_id || undefined}
+                onChange={(value) => setFormData({ ...formData, tracker_id: value })}
+                options={trackers.map((tracker) => ({
+                  value: tracker.id.toString(),
+                  label: tracker.name,
+                }))}
+                style={{ width: '100%' }}
+                size="large"
+              />
             )}
           </div>
+
+          {/* Assignee - Display only (automatically assigned to current user) */}
+          {currentRedmineUser && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <label className="block text-gray-700 mb-1 font-semibold text-sm">
+                Assignee
+              </label>
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span className="text-gray-700 font-medium">
+                  {currentRedmineUser.firstname} {currentRedmineUser.lastname}
+                </span>
+                <span className="text-xs text-gray-500">({currentRedmineUser.login})</span>
+              </div>
+              <p className="text-xs text-gray-600 mt-1">This issue will be automatically assigned to you</p>
+            </div>
+          )}
 
           {/* Priority */}
           <div>

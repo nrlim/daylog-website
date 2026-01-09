@@ -38,6 +38,8 @@ export default function CreateActivityPage() {
   const { addNotification } = useNotificationStore();
   const [userTeams, setUserTeams] = useState<Team[]>([]);
   const [teamsLoading, setTeamsLoading] = useState(true);
+  const [redmineProjects, setRedmineProjects] = useState<any[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(true);
   const jakartaDateTime = getJakartaDateTime();
   const [formData, setFormData] = useState({
     date: jakartaDateTime.date,

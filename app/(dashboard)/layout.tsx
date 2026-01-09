@@ -95,7 +95,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   href="/redmine"
                   className="text-blue-100 hover:text-white transition-colors font-semibold text-sm"
                 >
-                  Redmine Tickets
+                  Agile
                 </Link>
                 <Link
                   href="/rewards"

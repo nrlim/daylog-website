@@ -198,6 +198,24 @@ export class RedmineService {
   }
 
   /**
+   * Get versions for a specific project
+   */
+  public async getProjectVersions(projectId: string | number): Promise<any[]> {
+    try {
+      const cacheKey = `versions_${projectId}`;
+      const cached = this.getFromCache(cacheKey);
+      if (cached) return cached;
+
+      const response = await this.fetchApi(`/projects/${projectId}/versions.json`);
+      const versions = response.versions || [];
+      this.setCache(cacheKey, versions);
+      return versions;
+    } catch (error) {
+      throw this.handleError(`Failed to get versions for project ${projectId}`, error, `/projects/${projectId}/versions.json`);
+    }
+  }
+
+  /**
    * Get issues for a specific project
    */
   public async getProjectIssues(

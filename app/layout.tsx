@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import 'antd/dist/reset.css'
 import LoadingOverlay from '@/components/LoadingOverlay'
 import NotificationPopup from '@/components/NotificationPopup'
 

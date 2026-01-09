@@ -58,35 +58,22 @@ export async function GET(request: NextRequest) {
   try {
     const creds = getRedmineCredentials(request);
     if (!creds) {
-      return NextResponse.json({
-        error: 'Redmine credentials not found',
-      }, { status: 401 });
+      return NextResponse.json(
+        { error: 'Redmine credentials not found' },
+        { status: 401 }
+      );
     }
 
-    const { searchParams } = new URL(request.url);
-    const params: Record<string, string | number> = Object.fromEntries(searchParams);
+    const response = await makeRedmineRequest('/issue_statuses.json', creds);
 
-    // Ensure we get all projects
-    if (!params.limit) {
-      params.limit = 9999;
-    }
-
-    console.log('Fetching projects with params:', params);
-
-    const response = await makeRedmineRequest('/projects.json', creds, {
-      params,
-    });
-
-    console.log('[PROJECTS API] Total projects from Redmine:', response.data.projects?.length || 0);
-
-    return NextResponse.json({
-      projects: response.data.projects || [],
-      total_count: response.data.total_count || 0,
-    });
+    return NextResponse.json(response.data);
   } catch (error: any) {
-    console.error('Projects API Error:', error.message);
-    return NextResponse.json({
-      error: error.response?.data?.error || 'Failed to fetch projects',
-    }, { status: error.response?.status || 500 });
+    console.error('Failed to fetch issue statuses:', error.message);
+    return NextResponse.json(
+      {
+        error: error.response?.data?.error || 'Failed to fetch issue statuses',
+      },
+      { status: error.response?.status || 500 }
+    );
   }
 }
