@@ -162,8 +162,8 @@ export default function HomePage() {
 
           {/* Top Performers Section */}
           <div className="text-center mb-8">
-            <h3 className="text-3xl font-bold text-white mb-2">🌟 Top Performers This Month</h3>
-            <p className="text-slate-400">Celebrating our team's best contributors</p>
+            <h3 className="text-3xl font-bold text-white mb-2">Top Performers This Month</h3>
+            <p className="text-slate-400">Celebrating our team&apos;s best contributors</p>
           </div>
 
           {loadingPerformers ? (
