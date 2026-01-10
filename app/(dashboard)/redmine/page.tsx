@@ -58,10 +58,21 @@ export default function RedmineTicketsPage() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [draggedIssue, setDraggedIssue] = useState<Issue | null>(null);
+  
+  // Temporary filter states for sidebar
+  const [tempProjectFilter, setTempProjectFilter] = useState('all');
+  const [tempAssigneeFilter, setTempAssigneeFilter] = useState('all');
+  const [tempTrackerFilter, setTempTrackerFilter] = useState('all');
+  const [tempVersionFilter, setTempVersionFilter] = useState('all');
+  const [tempHiddenColumns, setTempHiddenColumns] = useState<number[]>([STATUS_IDS.CLOSED, STATUS_IDS.DROPPED, STATUS_IDS.ON_HOLD]);
+  
+  // Active filter states
   const [projectFilter, setProjectFilter] = useState('all');
   const [assigneeFilter, setAssigneeFilter] = useState('all');
   const [trackerFilter, setTrackerFilter] = useState('all');
   const [versionFilter, setVersionFilter] = useState('all');
+  const [hiddenColumns, setHiddenColumns] = useState<number[]>([STATUS_IDS.CLOSED, STATUS_IDS.DROPPED, STATUS_IDS.ON_HOLD]);
+  
   const [projects, setProjects] = useState<any[]>([]);
   const [assignees, setAssignees] = useState<any[]>([]);
   const [trackers, setTrackers] = useState<any[]>([]);
@@ -71,7 +82,10 @@ export default function RedmineTicketsPage() {
   const [currentRedmineUserId, setCurrentRedmineUserId] = useState<number | null>(null);
   const [editingIssue, setEditingIssue] = useState<Issue | null>(null);
   const [isViewMode, setIsViewMode] = useState(true);
-  const [hiddenColumns, setHiddenColumns] = useState<number[]>([STATUS_IDS.CLOSED, STATUS_IDS.DROPPED, STATUS_IDS.ON_HOLD]);
+  const [filtersExpanded, setFiltersExpanded] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [collapsedColumns, setCollapsedColumns] = useState<number[]>([]);
+  const [dragOverIssueId, setDragOverIssueId] = useState<number | null>(null);
 
   // Fetch Redmine user and projects on mount
   useEffect(() => {
@@ -199,6 +213,12 @@ export default function RedmineTicketsPage() {
   const handleDragStart = (e: React.DragEvent, issue: Issue) => {
     setDraggedIssue(issue);
     e.dataTransfer!.effectAllowed = 'move';
+    e.dataTransfer!.setDragImage(e.currentTarget, 0, 0);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIssue(null);
+    setDragOverIssueId(null);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -209,6 +229,8 @@ export default function RedmineTicketsPage() {
   const handleDrop = async (e: React.DragEvent, targetColumnId: number) => {
     e.preventDefault();
     if (!draggedIssue) return;
+
+    setDragOverIssueId(null);
 
     // If same status, just return
     if (draggedIssue.status.id === targetColumnId) {
@@ -298,6 +320,39 @@ export default function RedmineTicketsPage() {
     return 'bg-slate-700 text-slate-300';
   };
 
+  // Temporary toggle for sidebar filters
+  const toggleTempColumnVisibility = (columnId: number) => {
+    setTempHiddenColumns((prev) => 
+      prev.includes(columnId) 
+        ? prev.filter((id) => id !== columnId)
+        : [...prev, columnId]
+    );
+  };
+
+  // Apply all filters
+  const applyFilters = () => {
+    setProjectFilter(tempProjectFilter);
+    setAssigneeFilter(tempAssigneeFilter);
+    setTrackerFilter(tempTrackerFilter);
+    setVersionFilter(tempVersionFilter);
+    setHiddenColumns(tempHiddenColumns);
+    addNotification({
+      type: 'success',
+      title: 'Filters Applied',
+      message: 'Board filters have been updated',
+      duration: 2000,
+    });
+  };
+
+  // Clear all filters
+  const clearFilters = () => {
+    setTempProjectFilter('all');
+    setTempAssigneeFilter('all');
+    setTempTrackerFilter('all');
+    setTempVersionFilter('all');
+    setTempHiddenColumns([STATUS_IDS.CLOSED, STATUS_IDS.DROPPED, STATUS_IDS.ON_HOLD]);
+  };
+
   const toggleColumnVisibility = (columnId: number) => {
     setHiddenColumns((prev) => 
       prev.includes(columnId) 
@@ -306,228 +361,353 @@ export default function RedmineTicketsPage() {
     );
   };
 
+  const toggleColumnCollapse = (columnId: number) => {
+    setCollapsedColumns((prev) =>
+      prev.includes(columnId)
+        ? prev.filter((id) => id !== columnId)
+        : [...prev, columnId]
+    );
+  };
+
   const visibleColumns = columns.filter((col) => !hiddenColumns.includes(col.id));
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col overflow-hidden">
-      {/* Loading Overlay for Card Movement */}
-      {updating && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-slate-800 rounded-lg p-6 shadow-2xl border border-slate-600 flex flex-col items-center gap-4">
-            <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-white font-semibold text-lg">Updating ticket status...</p>
-          </div>
-        </div>
-      )}
-
+    <div className="fixed inset-0 bg-slate-50 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="bg-gradient-to-r from-slate-800 to-slate-700 border-b border-slate-600 shadow-lg flex-shrink-0">
-        <div className="px-6 py-3">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="p-1.5 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
-                title="Back to Dashboard"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <h1 className="text-2xl font-bold text-white">Daylog Board</h1>
-              <span className="text-sm font-medium text-slate-300 bg-slate-700/50 px-3 py-1 rounded-full">
-                {getTotalIssueCount()} tasks
-              </span>
-            </div>
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg flex-shrink-0">
+        <div className="px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
             <button
-              onClick={() => setShowCreateModal(true)}
-              className="ml-auto px-4 py-2 text-sm bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-500 transition-colors"
+              onClick={() => router.push('/dashboard')}
+              className="p-1.5 text-white/80 hover:text-white hover:bg-white/20 rounded transition-colors"
             >
-              Create Ticket
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
             </button>
+            <h1 className="text-2xl font-bold text-white">Agile Board</h1>
           </div>
-
-          {/* Filters */}
-          <div className="flex gap-2 flex-wrap items-center">
+          <div className="flex items-center gap-3">
             <select
               value={projectFilter}
               onChange={(e) => setProjectFilter(e.target.value)}
-              className="px-3 py-1.5 text-sm border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-700 text-white font-medium hover:bg-slate-600 transition-colors"
+              className="px-3 py-2 border border-white/30 rounded-lg bg-white/20 text-sm font-medium text-white placeholder-white/70 hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white/50"
             >
-              <option value="all">All Projects</option>
+              <option value="all" style={{ color: 'black' }}>All Projects</option>
               {projects.map((proj) => (
-                <option key={proj?.id} value={proj?.id}>
+                <option key={proj?.id} value={proj?.id} style={{ color: 'black' }}>
                   {proj?.name}
                 </option>
               ))}
             </select>
-            <select
-              value={versionFilter}
-              onChange={(e) => setVersionFilter(e.target.value)}
-              disabled={projectFilter === 'all'}
-              className="px-3 py-1.5 text-sm border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-700 text-white font-medium hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="px-4 py-2 bg-white text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition-colors"
             >
-              <option value="all">All Versions</option>
-              {versions.map((version) => (
-                <option key={version?.id} value={version?.id}>
-                  {version?.name}
-                </option>
-              ))}
-            </select>
-            <select
-              value={assigneeFilter}
-              onChange={(e) => setAssigneeFilter(e.target.value)}
-              className="px-3 py-1.5 text-sm border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-700 text-white font-medium hover:bg-slate-600 transition-colors"
-            >
-              <option value="all">All Assignees</option>
-              {assignees.map((assignee) => (
-                <option key={assignee?.id} value={assignee?.id}>
-                  {assignee?.name}
-                </option>
-              ))}
-            </select>
-            <select
-              value={trackerFilter}
-              onChange={(e) => setTrackerFilter(e.target.value)}
-              className="px-3 py-1.5 text-sm border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-700 text-white font-medium hover:bg-slate-600 transition-colors"
-            >
-              <option value="all">All Trackers</option>
-              {trackers.map((tracker) => (
-                <option key={tracker?.id} value={tracker?.id}>
-                  {tracker?.name}
-                </option>
-              ))}
-            </select>
-            
-            {/* Column Visibility Filters */}
-            <div className="flex items-center gap-2 ml-4 pl-4 border-l border-slate-600">
-              <span className="text-xs text-slate-400 font-medium">Show:</span>
-              <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer hover:text-white transition-colors">
-                <input
-                  type="checkbox"
-                  checked={!hiddenColumns.includes(STATUS_IDS.CLOSED)}
-                  onChange={() => toggleColumnVisibility(STATUS_IDS.CLOSED)}
-                  className="w-3.5 h-3.5 rounded border-slate-500 text-green-600 focus:ring-2 focus:ring-green-500 cursor-pointer"
-                />
-                Closed
-              </label>
-              <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer hover:text-white transition-colors">
-                <input
-                  type="checkbox"
-                  checked={!hiddenColumns.includes(STATUS_IDS.ON_HOLD)}
-                  onChange={() => toggleColumnVisibility(STATUS_IDS.ON_HOLD)}
-                  className="w-3.5 h-3.5 rounded border-slate-500 text-gray-600 focus:ring-2 focus:ring-gray-500 cursor-pointer"
-                />
-                On Hold
-              </label>
-              <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer hover:text-white transition-colors">
-                <input
-                  type="checkbox"
-                  checked={!hiddenColumns.includes(STATUS_IDS.DROPPED)}
-                  onChange={() => toggleColumnVisibility(STATUS_IDS.DROPPED)}
-                  className="w-3.5 h-3.5 rounded border-slate-500 text-red-600 focus:ring-2 focus:ring-red-500 cursor-pointer"
-                />
-                Dropped
-              </label>
-            </div>
-            
-            <span className="text-xs text-slate-400 ml-auto">Drag tasks to update status • Click to edit</span>
+              Create Task
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Loading State */}
-      {loading && (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-12 h-12 mx-auto mb-4">
-              <div className="animate-spin rounded-full h-12 w-12 border-3 border-slate-700 border-t-blue-500"></div>
-            </div>
-            <p className="text-slate-300 font-semibold">Loading tasks...</p>
-          </div>
-        </div>
-      )}
-
-      {/* Kanban Board - Fullscreen */}
-      {!loading && (
-        <div className="flex-1 p-4 overflow-hidden flex flex-col">
-          {/* Columns Container - Responsive without horizontal scroll */}
-          <div className="flex gap-3 flex-1 min-h-0">
-            {visibleColumns.map((column) => (
-              <div
-                key={column.id}
-                className="flex-1 min-w-0 flex flex-col bg-slate-700/30 rounded-lg border border-slate-600 overflow-hidden shadow-lg hover:shadow-xl transition-shadow"
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, column.id)}
-              >
-                {/* Column Header */}
-                <div className={`${column.headerColor} px-3 py-2 font-bold text-white shadow-md flex justify-between items-center flex-shrink-0`}>
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-sm">{column.name}</span>
-                  </div>
-                  <span className="bg-black/20 px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0">
-                    {column.issues.length}
-                  </span>
-                </div>
-
-                {/* Issues List - Scrollable */}
-                <div className="flex-1 overflow-y-auto p-2 space-y-2 min-h-0">
-                  {column.issues.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-8 text-slate-400 h-full">
-                      <p className="text-xs font-medium">No tasks</p>
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden flex-row-reverse">
+        {/* Right Sidebar - Filters */}
+        {sidebarOpen && (
+          <div className="w-64 bg-white border-l border-gray-200 overflow-y-auto flex flex-col">
+            <div className="p-4 space-y-6 flex-1 overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-gray-900">Sidebar</h3>
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                  title="Close sidebar"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              {/* Filters Section */}
+              <div>
+                <button
+                  onClick={() => setFiltersExpanded(!filtersExpanded)}
+                  className="flex items-center justify-between w-full font-bold text-gray-900 text-sm mb-3 hover:text-blue-600"
+                >
+                  <span>Filters</span>
+                  <svg 
+                    className={`w-4 h-4 transition-transform ${filtersExpanded ? 'rotate-180' : ''}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                  </svg>
+                </button>
+                
+                {filtersExpanded && (
+                  <div className="space-y-4">
+                    {/* Assignee Filter */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase">Assignee</label>
+                      <select
+                        value={tempAssigneeFilter}
+                        onChange={(e) => setTempAssigneeFilter(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm bg-white text-gray-900 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="all">All Assignees</option>
+                        {assignees.map((assignee) => (
+                          <option key={assignee?.id} value={assignee?.id}>
+                            {assignee?.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                  ) : (
-                    column.issues.map((issue) => {
-                      const trackerLabel = getTrackerLabel(issue.tracker.name);
-                      
-                      return (
-                        <div
-                          key={issue.id}
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, issue)}
-                          onClick={() => setSelectedIssue(issue)}
-                          className="bg-slate-800/80 border border-slate-600 rounded-lg cursor-grab active:cursor-grabbing hover:border-blue-400 hover:shadow-lg transition-all duration-200 hover:-translate-y-1 group overflow-hidden"
-                        >
-                          <div className="p-3 flex flex-col h-full">
-                            {/* Top row: Type + ID */}
-                            <div className="flex items-start justify-between gap-2 mb-2">
-                              <span className={`font-bold text-sm px-2 py-1 rounded ${trackerLabel.bgColor} ${trackerLabel.textColor}`}>
-                                {trackerLabel.label.toUpperCase()} #{issue.id}
-                              </span>
-                            </div>
 
-                            {/* Subject - Main content */}
-                            <p className="text-sm font-semibold text-white line-clamp-2 group-hover:text-blue-200 transition-colors leading-tight mb-3 flex-1">
-                              {issue.subject}
-                            </p>
+                    {/* Tracker Filter */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase">Tracker</label>
+                      <select
+                        value={tempTrackerFilter}
+                        onChange={(e) => setTempTrackerFilter(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm bg-white text-gray-900 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="all">All Types</option>
+                        {trackers.map((tracker) => (
+                          <option key={tracker?.id} value={tracker?.id}>
+                            {tracker?.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                            {/* Divider */}
-                            <div className="border-t border-slate-600 mb-2" />
+                    {/* Version Filter */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase">Target Version</label>
+                      <select
+                        value={tempVersionFilter}
+                        onChange={(e) => setTempVersionFilter(e.target.value)}
+                        disabled={projectFilter === 'all'}
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm bg-white text-gray-900 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <option value="all">All Versions</option>
+                        {versions.map((version) => (
+                          <option key={version?.id} value={version?.id}>
+                            {version?.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
 
-                            {/* Bottom row: Project and Assignee */}
-                            <div className="space-y-1">
-                              <div className="text-xs text-slate-400">
-                                <span className="text-slate-500">Project:</span>
-                                <span className="text-slate-300 ml-1">{issue.project.name}</span>
-                              </div>
-                              <div className="text-xs text-slate-400">
-                                <span className="text-slate-500">Assignee:</span>
-                                <span className="text-slate-300 ml-1">
-                                  {issue.assigned_to ? issue.assigned_to.name : 'Unassigned'}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
+              {/* Board Columns Section */}
+              <div>
+                <h3 className="font-bold text-gray-900 text-sm mb-3">Board Columns</h3>
+                <div className="space-y-2">
+                  {COLUMNS.map((col) => (
+                    <label key={col.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={!tempHiddenColumns.includes(col.id)}
+                        onChange={() => toggleTempColumnVisibility(col.id)}
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span className="text-sm text-gray-700">{col.name}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
-            ))}
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-2 p-4 border-t border-gray-200">
+              <button
+                onClick={applyFilters}
+                className="flex-1 px-3 py-2 bg-blue-600 text-white rounded font-medium text-sm hover:bg-blue-700 transition-colors"
+              >
+                Apply
+              </button>
+              <button
+                onClick={clearFilters}
+                className="flex-1 px-3 py-2 bg-gray-200 text-gray-900 rounded font-medium text-sm hover:bg-gray-300 transition-colors"
+              >
+                Clear
+              </button>
+            </div>
           </div>
+        )}
+
+        {/* Sidebar Toggle Button */}
+        {!sidebarOpen && (
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="absolute right-0 top-24 bg-white border border-gray-200 rounded-l-lg p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 transition-colors z-40 shadow-md"
+            title="Open sidebar"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+        )}
+
+        {/* Main Board Area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Loading State */}
+          {loading && (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-12 h-12 mx-auto mb-4">
+                  <div className="animate-spin rounded-full h-12 w-12 border-3 border-blue-200 border-t-blue-600"></div>
+                </div>
+                <p className="text-gray-600 font-semibold">Loading tasks...</p>
+              </div>
+            </div>
+          )}
+
+          {/* Kanban Board */}
+          {!loading && (
+            <div className="flex-1 p-4 overflow-x-auto">
+              <div className="flex gap-4 min-h-full">
+                {visibleColumns.map((column) => (
+                  <div
+                    key={column.id}
+                    className="flex-1 min-w-72 flex flex-col bg-gray-100 rounded-lg overflow-hidden hover:shadow-md transition-all duration-200"
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, column.id)}
+                  >
+                    {/* Column Header */}
+                    <div className={`${column.headerColor} px-4 py-3 text-white font-bold flex justify-between items-center flex-shrink-0 transition-all duration-200`}>
+                      <button
+                        onClick={() => toggleColumnCollapse(column.id)}
+                        className="flex items-center gap-2 hover:opacity-80 transition-opacity flex-1 text-left"
+                      >
+                        <svg 
+                          className={`w-4 h-4 transition-transform flex-shrink-0 ${collapsedColumns.includes(column.id) ? '-rotate-90' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                        </svg>
+                        <span>{column.name}</span>
+                      </button>
+                      <span className="bg-white/20 px-2.5 py-1 rounded text-sm font-semibold flex-shrink-0">
+                        {column.issues.length}
+                      </span>
+                    </div>
+
+                    {/* Issues Container */}
+                    {!collapsedColumns.includes(column.id) && (
+                      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                        {column.issues.length === 0 ? (
+                          <div className="flex items-center justify-center h-20 text-gray-500 text-sm">
+                            No tasks
+                          </div>
+                        ) : (
+                          column.issues.map((issue, issueIndex) => {
+                            const priorityColor = getPriorityColor(issue.priority.name);
+                            const isDragging = draggedIssue?.id === issue.id;
+                            const isDropTarget = dragOverIssueId === issue.id;
+                            const dropTargetIndex = draggedIssue && dragOverIssueId 
+                              ? column.issues.findIndex(i => i.id === dragOverIssueId)
+                              : -1;
+                            const shouldPushDown = draggedIssue && dropTargetIndex >= 0 && issueIndex > dropTargetIndex;
+                            
+                            return (
+                              <div key={issue.id}>
+                                {/* Drop indicator before card */}
+                                {draggedIssue && (
+                                  <div
+                                    className="h-1 mx-2 rounded-full pointer-events-none"
+                                    style={{
+                                      backgroundColor: isDropTarget ? '#3b82f6' : 'transparent',
+                                      boxShadow: isDropTarget ? '0 0 8px rgba(59, 130, 246, 0.6)' : 'none',
+                                      transition: 'all 0.15s cubic-bezier(0.4, 0.0, 0.2, 1)',
+                                    }}
+                                  />
+                                )}
+                                <div
+                                  draggable
+                                  onDragStart={(e) => handleDragStart(e, issue)}
+                                  onDragEnter={(e) => {
+                                    e.preventDefault();
+                                    setDragOverIssueId(issue.id);
+                                  }}
+                                  onDragOver={(e) => {
+                                    e.preventDefault();
+                                    e.dataTransfer.dropEffect = 'move';
+                                  }}
+                                  onDragLeave={(e) => {
+                                    if (e.currentTarget === e.target) {
+                                      setDragOverIssueId(null);
+                                    }
+                                  }}
+                                  onDragEnd={handleDragEnd}
+                                  onClick={() => setSelectedIssue(issue)}
+                                  className={`bg-white border border-gray-300 rounded-lg p-3 cursor-grab active:cursor-grabbing will-change-transform ${
+                                    isDragging 
+                                      ? 'opacity-40 ring-2 ring-blue-500' 
+                                      : isDropTarget && draggedIssue
+                                      ? 'translate-y-2 shadow-xl'
+                                      : shouldPushDown
+                                      ? 'translate-y-2 shadow-md'
+                                      : 'hover:shadow-md hover:border-blue-300'
+                                  }`}
+                                  style={{
+                                    transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                                    transform: isDragging 
+                                      ? 'scale(0.95)' 
+                                      : (isDropTarget || shouldPushDown) && draggedIssue
+                                      ? 'translateY(10px)'
+                                      : 'translateY(0)',
+                                  }}
+                                >
+                                  <div className="space-y-2">
+                                    {/* Title and ID */}
+                                    <div className="flex items-start justify-between gap-2">
+                                      <h4 className="text-sm font-semibold text-gray-900 line-clamp-2 flex-1">
+                                        {issue.subject}
+                                      </h4>
+                                      <span className="text-xs font-bold text-gray-600 flex-shrink-0">#{issue.id}</span>
+                                    </div>
+
+                                    {/* Priority and Tracker */}
+                                    <div className="flex gap-2">
+                                      <span className={`text-xs font-bold px-2 py-0.5 rounded ${priorityColor}`}>
+                                        {issue.priority.name}
+                                      </span>
+                                      <span className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded">
+                                        {issue.tracker.name}
+                                      </span>
+                                    </div>
+
+                                    {/* Assignee and Project */}
+                                    <div className="text-xs text-gray-600 space-y-1 border-t border-gray-200 pt-2">
+                                      <div>
+                                        <span className="font-semibold">Assignee:</span> {issue.assigned_to?.name || 'Unassigned'}
+                                      </div>
+                                      <div>
+                                        <span className="font-semibold">Project:</span> {issue.project.name}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Task Detail Modal */}
       {selectedIssue && (
