@@ -12,23 +12,24 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  username  String   @unique
-  password  String
-  email     String?  @unique
-  role      String   @default("member") // admin, member
-  points    Int      @default(0)         // User's total points
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String   @id @default(uuid())
+  username         String   @unique
+  password         String
+  email            String?  @unique
+  role             String   @default("member") // admin, member
+  points           Int      @default(0)         // User's total points
+  profilePicture   String?                      // Cloudinary URL to user's profile picture
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
   
   teamMembers         TeamMember[]
   activities          Activity[]
-  votes               Vote[]
   wfhRecords          WFHRecord[]
   wfhQuotas           UserWFHQuota[]
   pointTransactions   PointTransaction[]
   adminPointTransactions PointTransaction[] @relation("adminPointTransactions")
   redemptions         Redemption[]
+  topPerformerRecords TopPerformer[]
 }
 
 model Team {
@@ -40,8 +41,8 @@ model Team {
   updatedAt           DateTime @updatedAt
   
   members             TeamMember[]
-  pokerSessions       PokerSession[]
   wfhRecords          WFHRecord[]
+  topPerformers       TopPerformer[]
 }
 
 model TeamMember {
@@ -90,40 +91,20 @@ model WFHRecord {
   @@unique([userId, teamId, date])
 }
 
-model PokerSession {
-  id          String   @id @default(uuid())
-  teamId      String
-  storyName   String
-  description String?
-  status      String   @default("voting") // voting, revealed, completed
-  finalPoints Int?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model TopPerformer {
+  id        String   @id @default(uuid())
+  teamId    String
+  userId    String
+  rank      Int      // 1, 2, or 3
+  month     Int      // 1-12
+  year      Int      // YYYY
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   
-  team  Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  votes Vote[]
-}
-
-model Vote {
-  id              String   @id @default(uuid())
-  pokerSessionId  String
-  userId          String
-  points          Int
-  createdAt       DateTime @default(now())
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  session PokerSession @relation(fields: [pokerSessionId], references: [id], onDelete: Cascade)
-  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@unique([pokerSessionId, userId])
-}
-
-model AnonymousPokerSession {
-  id          String   @id
-  creatorName String
-  participants Json     // Store as JSON array of {name, card, revealed}
-  showResults Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  @@unique([teamId, rank, month, year])
 }
 
 model PointTransaction {

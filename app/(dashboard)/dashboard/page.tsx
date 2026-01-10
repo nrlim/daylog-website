@@ -3,8 +3,18 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuthStore, useNotificationStore } from '@/lib/store';
-import { activityAPI, teamAPI } from '@/lib/api';
+import { activityAPI, teamAPI, api } from '@/lib/api';
 import { Activity } from '@/types';
+
+interface TopPerformer {
+  id: string;
+  userId: string;
+  rank: number;
+  user: {
+    username: string;
+    profilePicture?: string;
+  };
+}
 
 export default function DashboardPage() {
   const user = useAuthStore((state) => state.user);
@@ -13,11 +23,26 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [wfhUsage, setWfhUsage] = useState<{ used: number; limit: number; remaining: number } | null>(null);
   const [userTeams, setUserTeams] = useState<any[]>([]);
+  const [topPerformers, setTopPerformers] = useState<TopPerformer[]>([]);
+  const [loadingPerformers, setLoadingPerformers] = useState(true);
 
   useEffect(() => {
     loadUserTeams();
     loadUserActivities();
+    loadTopPerformers();
   }, [user?.id]);
+
+  const loadTopPerformers = async () => {
+    try {
+      setLoadingPerformers(true);
+      const response = await api.get('/top-performers');
+      setTopPerformers(response.data || []);
+    } catch (error) {
+      console.error('Failed to fetch top performers:', error);
+    } finally {
+      setLoadingPerformers(false);
+    }
+  };
 
   const loadUserTeams = async () => {
     try {
@@ -71,6 +96,32 @@ export default function DashboardPage() {
     }
   };
 
+  const getMedalEmoji = (rank: number) => {
+    switch (rank) {
+      case 1:
+        return '🥇';
+      case 2:
+        return '🥈';
+      case 3:
+        return '🥉';
+      default:
+        return '';
+    }
+  };
+
+  const getRankColor = (rank: number) => {
+    switch (rank) {
+      case 1:
+        return 'from-yellow-400 to-yellow-600';
+      case 2:
+        return 'from-gray-300 to-gray-500';
+      case 3:
+        return 'from-orange-400 to-orange-600';
+      default:
+        return 'from-blue-400 to-blue-600';
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'Done':
@@ -115,6 +166,51 @@ export default function DashboardPage() {
           View Activities
         </Link>
       </div>
+
+      {/* Top Performers Section */}
+      {!loadingPerformers && topPerformers.length > 0 && (
+        <div className="bg-white rounded-xl shadow border border-gray-100 p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">🌟 Top Performers This Month</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {topPerformers.map((performer) => (
+              <div
+                key={performer.id}
+                className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${getRankColor(performer.rank)} p-0.5`}
+              >
+                <div className="relative bg-slate-50 rounded-lg p-6 flex flex-col items-center justify-center h-full">
+                  {/* Profile Picture */}
+                  {performer.user.profilePicture ? (
+                    <div className="w-20 h-20 rounded-full overflow-hidden mb-3 border-2 border-gray-200">
+                      <img
+                        src={performer.user.profilePicture}
+                        alt={performer.user.username}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mb-3 border-2 border-gray-200">
+                      <span className="text-2xl font-bold text-white">{performer.user.username.charAt(0).toUpperCase()}</span>
+                    </div>
+                  )}
+                  
+                  <div className="text-4xl mb-2">{getMedalEmoji(performer.rank)}</div>
+                  
+                  <div className="text-center">
+                    <h4 className="text-lg font-bold text-gray-900 mb-1">
+                      {performer.user.username}
+                    </h4>
+                    <p className="text-gray-600 text-xs uppercase tracking-wider">
+                      {performer.rank === 1 && '⭐ Top Performer'}
+                      {performer.rank === 2 && '⭐ 2nd Place'}
+                      {performer.rank === 3 && '⭐ 3rd Place'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Quick Links Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

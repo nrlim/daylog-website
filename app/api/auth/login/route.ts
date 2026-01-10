@@ -94,7 +94,9 @@ export async function POST(request: NextRequest) {
       user: {
         id: result.user.id,
         username: result.user.username,
+        email: result.user.email,
         role: result.user.role,
+        profilePicture: (result.user as any).profilePicture,
         authType: authType,
       },
     });

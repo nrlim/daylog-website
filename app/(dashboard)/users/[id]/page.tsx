@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { userAPI } from '@/lib/api';
+import { userAPI, api } from '@/lib/api';
+import { useAuthStore, useNotificationStore } from '@/lib/store';
 
 interface UserDetail {
   id: string;
@@ -30,21 +31,39 @@ export default function UserDetailPage() {
   const params = useParams();
   const router = useRouter();
   const userId = params.id as string;
+  const user = useAuthStore((state) => state.user);
+  const { addNotification } = useNotificationStore();
 
-  const [user, setUser] = useState<UserDetail | null>(null);
+  const [userDetail, setUserDetail] = useState<UserDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({ role: '' });
   const [error, setError] = useState('');
+  const [settingTopPerformer, setSettingTopPerformer] = useState<number | null>(null);
+  const [currentTopPerformers, setCurrentTopPerformers] = useState<{ rank: number; username: string }[]>([]);
 
   useEffect(() => {
     loadUser();
+    loadTopPerformers();
   }, [userId]);
+
+  const loadTopPerformers = async () => {
+    try {
+      const response = await api.get('/top-performers');
+      const performers = response.data.performers.map((p: any) => ({
+        rank: p.rank,
+        username: p.user.username,
+      }));
+      setCurrentTopPerformers(performers);
+    } catch (error) {
+      console.error('Failed to load top performers:', error);
+    }
+  };
 
   const loadUser = async () => {
     try {
       const response = await userAPI.getUserById(userId);
-      setUser(response.data.user);
+      setUserDetail(response.data.user);
       setFormData({ role: response.data.user.role });
     } catch (error) {
       console.error('Failed to load user:', error);
@@ -61,9 +80,48 @@ export default function UserDetailPage() {
       await userAPI.changeUserRole(userId, formData.role);
       loadUser();
       setIsEditing(false);
+      addNotification({
+        type: 'success',
+        title: 'Success',
+        message: 'Role updated successfully',
+      });
     } catch (error) {
       console.error('Failed to change role:', error);
       setError('Failed to change role');
+    }
+  };
+
+  const handleSetTopPerformer = async (rank: number) => {
+    if (!user || user.role !== 'admin') {
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Only admins can set top performers',
+      });
+      return;
+    }
+
+    setSettingTopPerformer(rank);
+    try {
+      await api.post('/top-performers', {
+        rank,
+        userId,
+      });
+      addNotification({
+        type: 'success',
+        title: 'Success',
+        message: `Set as Top ${rank} Performer!`,
+      });
+      loadTopPerformers();
+    } catch (error) {
+      console.error('Failed to set top performer:', error);
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to set top performer',
+      });
+    } finally {
+      setSettingTopPerformer(null);
     }
   };
 
@@ -71,7 +129,7 @@ export default function UserDetailPage() {
     return <div className="px-4 py-6">Loading...</div>;
   }
 
-  if (!user) {
+  if (!userDetail) {
     return <div className="px-4 py-6">User not found</div>;
   }
 
@@ -86,7 +144,7 @@ export default function UserDetailPage() {
   return (
     <div className="px-4 py-6 max-w-4xl mx-auto">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">{user.username}</h1>
+        <h1 className="text-3xl font-bold">{userDetail.username}</h1>
         <button
           onClick={() => router.back()}
           className="text-gray-600 hover:text-gray-900"
@@ -108,24 +166,24 @@ export default function UserDetailPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-gray-500">Username</p>
-            <p className="font-medium">{user.username}</p>
+            <p className="font-medium">{userDetail.username}</p>
           </div>
           
           <div>
             <p className="text-sm text-gray-500">Email</p>
-            <p className="font-medium">{user.email || 'Not provided'}</p>
+            <p className="font-medium">{userDetail.email || 'Not provided'}</p>
           </div>
           
           <div>
             <p className="text-sm text-gray-500">Role</p>
-            <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(user.role)}`}>
-              {user.role}
+            <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(userDetail.role)}`}>
+              {userDetail.role}
             </span>
           </div>
           
           <div>
             <p className="text-sm text-gray-500">Created At</p>
-            <p className="font-medium">{new Date(user.createdAt).toLocaleDateString()}</p>
+            <p className="font-medium">{new Date(userDetail.createdAt).toLocaleDateString()}</p>
           </div>
         </div>
 
@@ -165,13 +223,59 @@ export default function UserDetailPage() {
         )}
       </div>
 
+      {/* Top Performer Setting */}
+      {user && user.role === 'admin' && (
+        <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg shadow p-6 mb-6 border border-yellow-200">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            🏆 Set as Top Performer
+          </h2>
+          
+          <p className="text-sm text-gray-600 mb-4">
+            Assign {userDetail.username} to one of the podium positions for this month
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {[1, 2, 3].map((rank) => {
+              const currentRank = currentTopPerformers.find(p => p.rank === rank);
+              return (
+                <button
+                  key={rank}
+                  onClick={() => handleSetTopPerformer(rank)}
+                  disabled={settingTopPerformer === rank}
+                  className={`p-4 rounded-lg font-semibold transition-all ${
+                    rank === 1
+                      ? 'bg-gradient-to-br from-yellow-300 to-yellow-500 text-white hover:shadow-lg'
+                      : rank === 2
+                      ? 'bg-gradient-to-br from-slate-300 to-slate-400 text-white hover:shadow-lg'
+                      : 'bg-gradient-to-br from-orange-300 to-orange-500 text-white hover:shadow-lg'
+                  } ${settingTopPerformer === rank ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <div className="text-2xl mb-2">
+                    {rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'}
+                  </div>
+                  <div>Top {rank}</div>
+                  {currentRank && (
+                    <div className="text-xs mt-2 opacity-90">
+                      Current: {currentRank.username}
+                    </div>
+                  )}
+                  {settingTopPerformer === rank && (
+                    <div className="text-xs mt-2">Setting...</div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Teams */}
       <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Teams ({user.teamMembers.length})</h2>
+        <h2 className="text-xl font-semibold mb-4">Teams ({userDetail.teamMembers.length})</h2>
         
-        {user.teamMembers.length > 0 ? (
+        {userDetail.teamMembers.length > 0 ? (
           <div className="space-y-2">
-            {user.teamMembers.map((member) => (
+            {userDetail.teamMembers.map((member) => (
               <div key={member.id} className="flex justify-between items-center p-3 border rounded">
                 <div>
                   <p className="font-medium">{member.team.name}</p>
@@ -190,11 +294,11 @@ export default function UserDetailPage() {
 
       {/* Activities */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">Recent Activities ({user.activities.length})</h2>
+        <h2 className="text-xl font-semibold mb-4">Recent Activities ({userDetail.activities.length})</h2>
         
-        {user.activities.length > 0 ? (
+        {userDetail.activities.length > 0 ? (
           <div className="space-y-3">
-            {user.activities.slice(0, 5).map((activity) => (
+            {userDetail.activities.slice(0, 5).map((activity) => (
               <div key={activity.id} className="p-3 border rounded">
                 <div className="flex justify-between items-start">
                   <div>

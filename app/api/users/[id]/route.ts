@@ -19,6 +19,7 @@ export async function GET(
         username: true,
         email: true,
         role: true,
+        profilePicture: true,
         createdAt: true,
         teamMembers: {
           include: {
@@ -58,7 +59,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { username, email, role } = body;
+    const { username, email, role, profilePicture } = body;
 
     const user = await prisma.user.update({
       where: { id: params.id },
@@ -66,12 +67,14 @@ export async function PUT(
         ...(username && { username }),
         ...(email && { email }),
         ...(role && { role }),
+        ...(profilePicture && { profilePicture }),
       },
       select: {
         id: true,
         username: true,
         email: true,
         role: true,
+        profilePicture: true,
         createdAt: true,
       },
     });

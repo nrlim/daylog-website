@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { userAPI } from '@/lib/api';
+import { userAPI, api } from '@/lib/api';
 import { useNotificationStore, useLoadingStore } from '@/lib/store';
 import { User } from '@/types';
 
@@ -11,11 +11,26 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [topPerformers, setTopPerformers] = useState<{ [userId: string]: number }>({});
   const { addNotification } = useNotificationStore();
 
   useEffect(() => {
     loadUsers();
+    loadTopPerformers();
   }, []);
+
+  const loadTopPerformers = async () => {
+    try {
+      const response = await api.get('/top-performers');
+      const topMap: { [userId: string]: number } = {};
+      response.data.performers.forEach((performer: any) => {
+        topMap[performer.userId] = performer.rank;
+      });
+      setTopPerformers(topMap);
+    } catch (error) {
+      console.error('Failed to load top performers:', error);
+    }
+  };
 
   const loadUsers = async () => {
     try {
@@ -49,6 +64,7 @@ export default function UsersPage() {
         message: `${username} has been deleted successfully`,
       });
       loadUsers();
+      loadTopPerformers();
     } catch (error: any) {
       console.error('Failed to delete user:', error);
       const errorMsg = error.response?.data?.error || 'Failed to delete user';
@@ -119,6 +135,7 @@ export default function UsersPage() {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Username</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Email</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Role</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Top Performer</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Created At</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -139,6 +156,20 @@ export default function UsersPage() {
                       <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${getRoleBadgeColor(user.role)}`}>
                         {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {topPerformers[user.id] ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">
+                            {topPerformers[user.id] === 1 ? '🥇' : topPerformers[user.id] === 2 ? '🥈' : '🥉'}
+                          </span>
+                          <span className="text-xs font-semibold px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full">
+                            Top {topPerformers[user.id]}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-500">—</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                       {new Date(user.createdAt || '').toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}

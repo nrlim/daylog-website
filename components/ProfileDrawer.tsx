@@ -139,11 +139,19 @@ export default function ProfileDrawer() {
             {profileTab === 'info' && (
               <div>
                 <div className="flex items-start gap-4 mb-5">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 via-blue-500 to-purple-600 flex items-center justify-center shadow-lg flex-shrink-0 ring-4 ring-blue-100">
-                    <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                    </svg>
-                  </div>
+                  {(user as any)?.profilePicture ? (
+                    <img
+                      src={(user as any).profilePicture}
+                      alt={user?.username}
+                      className="w-20 h-20 rounded-full shadow-lg flex-shrink-0 ring-4 ring-blue-100 object-cover"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 via-blue-500 to-purple-600 flex items-center justify-center shadow-lg flex-shrink-0 ring-4 ring-blue-100">
+                      <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  )}
                   <div className="flex-1">
                     <h3 className="font-bold text-gray-900 text-lg">{user?.username}</h3>
                     <p className="text-sm text-gray-600 break-words">{user?.email}</p>
