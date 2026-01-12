@@ -76,7 +76,7 @@ async function getRedmineUserIdByUsername(username: string, offset: number = 0):
       headers: getRedmineHeaders(),
       timeout: REDMINE_TIMEOUT,
     });
- 
+
     // Match exact login to username
     const user = response.data.users?.find((u: any) => u.login === username);
     if (user) {
@@ -85,12 +85,12 @@ async function getRedmineUserIdByUsername(username: string, offset: number = 0):
       redmineUserCache.set(username, { id: userId, timestamp: Date.now() });
       return userId;
     }
-    
+
     // Check if there are more results to fetch
     const total = response.data.total_count || 0;
     const limit = response.data.limit || 100;
     const nextOffset = offset + limit;
-    
+
     if (nextOffset < total) {
       // Recursively try next offset
       return getRedmineUserIdByUsername(username, nextOffset);
@@ -109,13 +109,12 @@ async function fetchAllIssuesForUser(username: string, userId: string, from: str
   const allIssues: any[] = [];
   let offset = 0;
   let hasMore = true;
-  
+
   while (hasMore) {
     try {
       const response = await axios.get(`${REDMINE_URL}/issues.json`, {
         params: {
           assigned_to_id: userId,
-          tracker_id: 5,
           created_on: `><${from}|${to}`,
           limit: 100,
           offset: offset,
@@ -123,11 +122,11 @@ async function fetchAllIssuesForUser(username: string, userId: string, from: str
         headers: getRedmineHeaders(),
         timeout: REDMINE_TIMEOUT,
       });
-      
+
       const issues = response.data.issues || [];
       const totalCount = response.data.total_count || 0;
       allIssues.push(...issues);
-      
+
       // Check if there are more results to fetch
       if (allIssues.length >= totalCount) {
         hasMore = false;
@@ -138,7 +137,7 @@ async function fetchAllIssuesForUser(username: string, userId: string, from: str
       hasMore = false;
     }
   }
-  
+
   return allIssues;
 }
 
@@ -149,13 +148,12 @@ async function fetchClosedIssuesForUser(username: string, userId: string, from: 
   const allClosedIssues: any[] = [];
   let offset = 0;
   let hasMore = true;
-  
+
   while (hasMore) {
     try {
       const response = await axios.get(`${REDMINE_URL}/issues.json`, {
         params: {
           assigned_to_id: userId,
-          tracker_id: 5,
           status_id: 'closed',
           created_on: `><${from}|${to}`,
           limit: 100,
@@ -164,11 +162,11 @@ async function fetchClosedIssuesForUser(username: string, userId: string, from: 
         headers: getRedmineHeaders(),
         timeout: REDMINE_TIMEOUT,
       });
-      
+
       const issues = response.data.issues || [];
       const totalCount = response.data.total_count || 0;
       allClosedIssues.push(...issues);
-      
+
       // Check if there are more results to fetch
       if (allClosedIssues.length >= totalCount) {
         hasMore = false;
@@ -179,7 +177,7 @@ async function fetchClosedIssuesForUser(username: string, userId: string, from: 
       hasMore = false;
     }
   }
-  
+
   return allClosedIssues;
 }
 
@@ -196,7 +194,7 @@ async function batchFetchRedmineIssues(usernames: string[], dateFrom: string, da
 
   try {
     const userIdMap = new Map<string, string>();
-    
+
     // For each member, get their Redmine profile details
     for (const username of usernames) {
       const userId = await getRedmineUserIdByUsername(username);
@@ -208,12 +206,12 @@ async function batchFetchRedmineIssues(usernames: string[], dateFrom: string, da
     // Fetch all issues in parallel using user IDs
     const promises = usernames.map(async (username) => {
       const userId = userIdMap.get(username);
-      
+
       // Use user ID if found, otherwise skip this user
       if (!userId) {
         return { username, issues: [], closedIssues: [] };
       }
-      
+
       try {
         const issues = await fetchAllIssuesForUser(username, userId, dateFrom, dateTo);
         const closedIssues = await fetchClosedIssuesForUser(username, userId, dateFrom, dateTo);
@@ -240,32 +238,32 @@ async function batchFetchRedmineIssues(usernames: string[], dateFrom: string, da
 function processRedmineStats(issues: any[], closedIssues: any[]) {
   const newStatusIds = [1]; // Status ID for "New"
   const newStatusNames = ['new']; // Status name patterns (lowercased)
-  
+
   const inProgressStatusIds = [2]; // Status ID for "In Progress"
   const inProgressStatusNames = ['in progress', 'inprogress', 'testing']; // Status name patterns (lowercased)
-  
+
   const newIssuesCount = issues.filter((issue: any) => {
     const statusName = issue.status?.name?.toString().toLowerCase().trim();
     const statusId = issue.status?.id;
     // Check by ID first, then by exact name match
-    return newStatusIds.includes(statusId) || 
-           newStatusNames.some(s => statusName === s);
+    return newStatusIds.includes(statusId) ||
+      newStatusNames.some(s => statusName === s);
   }).length;
-  
+
   const inProgressIssuesCount = issues.filter((issue: any) => {
     const statusName = issue.status?.name?.toString().toLowerCase().trim();
     const statusId = issue.status?.id;
     // Check by ID first, then by exact name match
-    return inProgressStatusIds.includes(statusId) || 
-           inProgressStatusNames.some(s => statusName === s);
+    return inProgressStatusIds.includes(statusId) ||
+      inProgressStatusNames.some(s => statusName === s);
   }).length;
-  
+
   // Use actual closed issues count from separate query
   const closedIssuesCount = closedIssues.length;
-  
+
   // Total assigned = New + In Progress + Closed
   const totalIssues = newIssuesCount + inProgressIssuesCount + closedIssuesCount;
-  
+
   return {
     assignedIssues: totalIssues,
     newIssues: newIssuesCount,
@@ -282,15 +280,11 @@ function calculateProductivityMetrics(
   redmineIssues: any[],
   redmineClosedIssues: any[]
 ) {
-  // Weight constants: Redmine 75%, Daylog 25%
-  // Logic: If no Daylog tasks (office work only), trust Redmine at 100%
-  // If any Daylog tasks exist, use weighted formula (75% Redmine, 25% Daylog)
-  const REDMINE_WEIGHT = 0.75;
-  const DAYLOG_WEIGHT = 0.25;
+
 
   const daylogCompleted = daylogActivities.filter((a) => a.status?.toLowerCase() === 'done').length;
   const redmineCompleted = redmineClosedIssues.length;
-  
+
   // Calculate individual completion rates
   const daylogRate = daylogActivities.length > 0
     ? (daylogCompleted / daylogActivities.length) * 100
@@ -299,20 +293,25 @@ function calculateProductivityMetrics(
     ? (redmineCompleted / redmineIssues.length) * 100
     : 0;
 
-  // Option 1: If NO daylog tasks, trust Redmine at 100%. Otherwise use weighted formula
+  // Option 1: Combined Completion Rate (75% Redmine / 25% Daylog)
   let option1Score: number;
   if (daylogActivities.length === 0) {
-    // No daylog tasks (office work only) - use Redmine rate as 100% trust
     option1Score = Math.min(100, redmineRate);
   } else {
-    // Has daylog tasks - use weighted formula: (Redmine Rate × 0.75) + (Daylog Rate × 0.25)
     option1Score = Math.min(100, parseFloat((
-      (redmineRate * REDMINE_WEIGHT) + (daylogRate * DAYLOG_WEIGHT)
+      (redmineRate * 0.75) + (daylogRate * 0.25)
     ).toFixed(1)));
   }
 
-  // Option 2: Weighted Performance - Same logic as Option 1 (duplicate calculation removed)
-  const option2Score = option1Score;
+  // Option 2: Weighted Performance (50% Redmine / 50% Daylog)
+  let option2Score: number;
+  if (daylogActivities.length === 0) {
+    option2Score = Math.min(100, redmineRate);
+  } else {
+    option2Score = Math.min(100, parseFloat((
+      (redmineRate * 0.50) + (daylogRate * 0.50)
+    ).toFixed(1)));
+  }
 
   // Option 3: Time-based Efficiency
   let option3Data = {
@@ -326,7 +325,7 @@ function calculateProductivityMetrics(
   // Calculate daylog durations (using actual start time and completion time)
   // Convert to minutes (keep as minutes for better precision)
   const WORKING_MINUTES_PER_DAY = 480; // 8 hours = 480 minutes
-  
+
   const completedDaylogDurations = daylogActivities
     .filter((a) => a.status?.toLowerCase() === 'done' && a.updatedAt)
     .map((a) => {
@@ -340,13 +339,13 @@ function calculateProductivityMetrics(
       } else {
         startTime = new Date(a.createdAt);
       }
-      
+
       // Completion time is when user marked as done (updatedAt)
       const completionTime = new Date(a.updatedAt);
-      
+
       // Calculate duration in minutes
       const durationMinutes = Math.max(1, (completionTime.getTime() - startTime.getTime()) / (1000 * 60));
-      
+
       return {
         duration: durationMinutes, // in minutes
         isCompleted: true,
@@ -361,7 +360,7 @@ function calculateProductivityMetrics(
   // Calculate redmine durations (using closed_on - created_on for closed issues)
   // Create a Set for O(1) lookup instead of using .some()
   const closedRedmineIds = new Set(redmineClosedIssues.map((i) => i.id));
-  
+
   const closedRedmineDurations = redmineClosedIssues
     .filter((i) => i.created_on && i.closed_on)
     .map((i) => {
@@ -392,16 +391,16 @@ function calculateProductivityMetrics(
   // Time efficiency: completed tasks / total working minutes spent
   // This measures tasks completed per working period (scaled to per working day)
   const completedCount = completedDaylogDurations.length + closedRedmineDurations.length;
-  const totalWorkingMinutes = completedDaylogDurations.reduce((sum, d) => sum + d.duration, 0) 
-                            + closedRedmineDurations.reduce((sum, d) => sum + d.duration, 0);
-  
+  const totalWorkingMinutes = completedDaylogDurations.reduce((sum, d) => sum + d.duration, 0)
+    + closedRedmineDurations.reduce((sum, d) => sum + d.duration, 0);
+
   // Convert to working days for calculation
   const totalWorkingDays = totalWorkingMinutes / WORKING_MINUTES_PER_DAY;
-  
+
   // Tasks per working day, scaled to 0-100 (assume 4-5 tasks per day is excellent = 100)
   const tasksPerWorkingDay = totalWorkingDays > 0 ? completedCount / totalWorkingDays : 0;
   const rawTimeEfficiencyScore = Math.min(100, (tasksPerWorkingDay / 4) * 100); // 4 tasks/day = 100 points
-  
+
   option3Data.timeEfficiencyScore = Math.min(100, parseFloat(rawTimeEfficiencyScore.toFixed(1)));
 
   // Final Combined Score: 
@@ -413,20 +412,20 @@ function calculateProductivityMetrics(
   return {
     option1: { score: option1Score, label: 'Combined Completion Rate' },
     option2: { score: option2Score, label: 'Weighted Performance' },
-    option3: { 
+    option3: {
       score: option3Data.timeEfficiencyScore,
-      ...option3Data, 
-      label: 'Time-based Efficiency' 
+      ...option3Data,
+      label: 'Time-based Efficiency'
     },
     finalScore: {
       score: finalScore,
       label: 'Final Productivity Score',
-      description: daylogActivities.length === 0 
+      description: daylogActivities.length === 0
         ? 'Redmine-only (100% weight): Calculated from Redmine issue completion rate'
-        : 'Combined score (75% Redmine + 25% Daylog): Weighted completion rate',
+        : 'Combined score (50% Redmine + 50% Daylog): Weighted completion rate',
       weights: daylogActivities.length === 0
         ? { redmine: 1.0 }
-        : { redmine: 0.75, daylog: 0.25 }
+        : { redmine: 0.50, daylog: 0.50 }
     }
   };
 }
@@ -436,7 +435,7 @@ export async function GET(
   { params }: { params: { teamId: string } }
 ) {
   const startTime = Date.now();
-  
+
   try {
     const auth = await authMiddleware(request);
     if (!auth) {
@@ -513,9 +512,9 @@ export async function GET(
     // Get activities with minimal fields for performance
     const activities = await prisma.activity.findMany({
       where: whereClause,
-      select: { 
+      select: {
         id: true,
-        userId: true, 
+        userId: true,
         status: true,
         date: true,
         time: true,
@@ -528,7 +527,7 @@ export async function GET(
     const usernames = filteredMembers.map(m => m.user.username);
     const dateFrom = startDate || formatDateRange().from;
     const dateTo = endDate || formatDateRange().to;
-    
+
     // Fetch Redmine data in parallel with timeout protection
     const redminePromise = Promise.race([
       batchFetchRedmineIssues(usernames, dateFrom, dateTo),
@@ -541,15 +540,15 @@ export async function GET(
     // Calculate productivity metrics
     const memberProductivity = filteredMembers.map((member: typeof filteredMembers[0]) => {
       const memberActivities = activities.filter((a: typeof activities[0]) => a.userId === member.user.id);
-      
+
       // Normalize status values to be case-insensitive
-      const doneActivities = memberActivities.filter((a: typeof memberActivities[0]) => 
+      const doneActivities = memberActivities.filter((a: typeof memberActivities[0]) =>
         a.status?.toLowerCase() === 'done'
       );
-      const inProgressActivities = memberActivities.filter((a: typeof memberActivities[0]) => 
+      const inProgressActivities = memberActivities.filter((a: typeof memberActivities[0]) =>
         a.status?.toLowerCase() === 'inprogress' || a.status?.toLowerCase() === 'in progress'
       );
-      const blockedActivities = memberActivities.filter((a: typeof memberActivities[0]) => 
+      const blockedActivities = memberActivities.filter((a: typeof memberActivities[0]) =>
         a.status?.toLowerCase() === 'blocked'
       );
 
@@ -561,11 +560,11 @@ export async function GET(
       const totalTasks = memberActivities.length;
       const completedTasks = doneActivities.length;
       const inProgressTasks = inProgressActivities.length;
-      
+
       const daylogCompletionRate = Math.min(100, totalTasks > 0
         ? parseFloat(((completedTasks / totalTasks) * 100).toFixed(1))
         : 0);
-      
+
       // Calculate stats for Redmine issues only
       const redmineTotal = redmineStats.assignedIssues;
       const redmineCompletionRate = Math.min(100, redmineTotal > 0
@@ -575,7 +574,7 @@ export async function GET(
       // Calculate all three productivity options
       // Pass all redmine issues (open + closed) for accurate calculation
       const allRedmineIssues = [...memberIssuesData.issues, ...memberIssuesData.closedIssues];
-      
+
       const productivityMetrics = calculateProductivityMetrics(
         memberActivities,
         allRedmineIssues,
@@ -614,7 +613,7 @@ export async function GET(
           finalScore: productivityMetrics.finalScore,
         },
       };
-      })
+    })
 
     const duration = Date.now() - startTime;
     console.log(`Productivity report generated for team ${params.teamId} in ${duration}ms (${memberProductivity.length} members)`);
@@ -649,7 +648,7 @@ export async function GET(
       stack: error.stack,
       duration: `${duration}ms`,
     });
-    
+
     return NextResponse.json(
       { error: 'Failed to generate productivity report', details: error.message },
       { status: 500 }

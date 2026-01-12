@@ -82,7 +82,7 @@ export default function ProductivityReportPage() {
   const { addNotification } = useNotificationStore();
   const searchParams = useSearchParams();
   const teamId = searchParams.get('teamId');
-  
+
   const [report, setReport] = useState<ProductivityReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState<string>('');
@@ -108,16 +108,16 @@ export default function ProductivityReportPage() {
   const setMonthPeriod = (month: number, year: number) => {
     setSelectedMonth(month);
     setSelectedYear(year);
-    
+
     // First day of the month
     const firstDay = new Date(year, month, 1);
     // Last day of the month (day 0 of next month)
     const lastDay = new Date(year, month + 1, 0);
-    
+
     // Format dates in local time to avoid timezone issues
     const startDateStr = formatLocalDate(firstDay);
     const endDateStr = formatLocalDate(lastDay);
-    
+
     setStartDate(startDateStr);
     setEndDate(endDateStr);
   };
@@ -156,14 +156,14 @@ export default function ProductivityReportPage() {
 
   const loadReport = useCallback(async () => {
     if (!teamId || !startDate || !endDate) return;
-    
+
     setLoading(true);
     try {
       const response = await reportingAPI.getProductivityReport(teamId, {
         startDate,
         endDate,
       });
-      
+
       // Transform response data to calculate top performers
       const reportData = response.data;
       const members = (reportData.memberProductivity || reportData.members || []).map((m: any) => {
@@ -174,12 +174,12 @@ export default function ProductivityReportPage() {
           blockedTasks: m.blockedTasks || 0,
           completionRate: m.completionRate || 0,
         };
-        
+
         // Use final score if available, otherwise fall back to option1
-        const primaryScore = m.productivityMetrics?.finalScore?.score || 
-                            m.productivityMetrics?.option1?.score || 
-                            parseFloat(m.completionRate || stats?.completionRate || '0');
-        
+        const primaryScore = m.productivityMetrics?.finalScore?.score ||
+          m.productivityMetrics?.option1?.score ||
+          parseFloat(m.completionRate || stats?.completionRate || '0');
+
         return {
           ...m,
           metrics: {
@@ -206,7 +206,7 @@ export default function ProductivityReportPage() {
       const topPerformers = [...members]
         .sort((a: any, b: any) => b.productivityScore - a.productivityScore)
         .slice(0, 3);
-      
+
       setReport({
         ...reportData,
         topPerformers,
@@ -246,14 +246,14 @@ export default function ProductivityReportPage() {
   // Memoize the scoring information to prevent recomputation
   const scoringInfo = useMemo(() => ({
     option1: {
-      label: 'Weighted Combined Completion Rate',
+      label: 'Combined Completion Rate (Redmine Focus)',
       formula: 'If no Daylog: 100% Redmine Rate | If Daylog exists: (75% × Redmine Rate) + (25% × Daylog Rate)',
-      description: 'Smart weighting that uses Redmine as the primary metric. If no Daylog tasks, trusts Redmine completely. If Daylog exists, combines both with Redmine weighted at 75%',
+      description: 'Prioritizes Redmine work. If no Daylog tasks, trusts Redmine completely. If Daylog exists, gives Redmine 75% weight and Daylog 25% weight.',
     },
     option2: {
-      label: 'Weighted Performance Score',
-      formula: 'If no Daylog: 100% Redmine Rate | If Daylog exists: (75% × Redmine Rate) + (25% × Daylog Rate)',
-      description: 'Same calculation as Option 1 - an alternative view combining Redmine (75%) and Daylog (25%) completion rates',
+      label: 'Weighted Performance Score (Balanced)',
+      formula: 'If no Daylog: 100% Redmine Rate | If Daylog exists: (50% × Redmine Rate) + (50% × Daylog Rate)',
+      description: 'Balanced view combining Redmine (50%) and Daylog (50%) completion rates equally when both exist.',
     },
     option3: {
       label: 'Time-based Efficiency',
@@ -262,8 +262,8 @@ export default function ProductivityReportPage() {
     },
     final: {
       label: 'Final Productivity Score',
-      formula: 'Same as Option 1/2: If no Daylog: 100% Redmine | If Daylog: (75% Redmine) + (25% Daylog)',
-      description: 'Uses the combined completion rate as the primary score. Defaults to Redmine-only when no Daylog tasks, otherwise balances both systems',
+      formula: 'Same as Option 1/2: If no Daylog: 100% Redmine | If Daylog: (50% Redmine) + (50% Daylog)',
+      description: 'Uses the combined completion rate as the primary score. Defaults to Redmine-only when no Daylog tasks, otherwise balances both systems equally',
     },
   }), []);
 
@@ -324,7 +324,7 @@ export default function ProductivityReportPage() {
               >
                 ← Previous
               </button>
-              
+
               <div className="flex gap-4 items-center">
                 <select
                   value={selectedMonth}
@@ -335,7 +335,7 @@ export default function ProductivityReportPage() {
                     <option key={index} value={index}>{month}</option>
                   ))}
                 </select>
-                
+
                 <select
                   value={selectedYear}
                   onChange={(e) => setMonthPeriod(selectedMonth, parseInt(e.target.value))}
@@ -346,7 +346,7 @@ export default function ProductivityReportPage() {
                   ))}
                 </select>
               </div>
-              
+
               <button
                 onClick={goToNextMonth}
                 className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg transition-colors font-semibold"
@@ -402,11 +402,10 @@ export default function ProductivityReportPage() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {report.topPerformers.map((member, idx) => (
-              <div key={member.memberId} className={`rounded-lg shadow border overflow-hidden transition-shadow hover:shadow-md ${
-                idx === 0 ? 'bg-white border-slate-200 border-t-4 border-t-slate-800' :
+              <div key={member.memberId} className={`rounded-lg shadow border overflow-hidden transition-shadow hover:shadow-md ${idx === 0 ? 'bg-white border-slate-200 border-t-4 border-t-slate-800' :
                 idx === 1 ? 'bg-white border-slate-200' :
-                'bg-white border-slate-200'
-              }`}>
+                  'bg-white border-slate-200'
+                }`}>
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div>
@@ -449,7 +448,7 @@ export default function ProductivityReportPage() {
         <h2 className="text-2xl font-bold text-slate-900 mb-4">
           Team Productivity
         </h2>
-        
+
         {/* Pagination Info and Controls */}
         {report.members && report.members.length > ITEMS_PER_PAGE && (
           <div className="mb-4 flex items-center justify-between">
@@ -458,7 +457,7 @@ export default function ProductivityReportPage() {
             </div>
           </div>
         )}
-        
+
         <div className="grid grid-cols-1 gap-4">
           {report.members
             .sort((a, b) => b.productivityScore - a.productivityScore)
@@ -466,10 +465,9 @@ export default function ProductivityReportPage() {
             .map((member) => (
               <div
                 key={member.memberId}
-                className={`rounded-lg shadow border overflow-hidden transition-all hover:shadow-md ${
-                  member.productivityScore >= 80 ? 'bg-slate-50 border-slate-200' :
+                className={`rounded-lg shadow border overflow-hidden transition-all hover:shadow-md ${member.productivityScore >= 80 ? 'bg-slate-50 border-slate-200' :
                   'bg-white border-slate-100'
-                }`}
+                  }`}
               >
                 <div className="p-6">
                   {/* Header with member info and score */}
@@ -534,11 +532,10 @@ export default function ProductivityReportPage() {
                     <div>
                       <div className="text-sm font-semibold text-slate-900 mb-1">WFH Status</div>
                       <div className="flex items-baseline gap-2">
-                        <div className={`text-lg font-bold ${
-                          member.metrics.wfhDays > (report?.team.wfhLimitPerMonth || 3) 
-                            ? 'text-red-600' 
-                            : 'text-purple-600'
-                        }`}>
+                        <div className={`text-lg font-bold ${member.metrics.wfhDays > (report?.team.wfhLimitPerMonth || 3)
+                          ? 'text-red-600'
+                          : 'text-purple-600'
+                          }`}>
                           {member.metrics.wfhDays} days
                         </div>
                         <div className="text-xs text-slate-500">
@@ -553,16 +550,15 @@ export default function ProductivityReportPage() {
                     </div>
                     <div>
                       <div className="text-sm font-semibold text-slate-900 mb-1">Performance Status</div>
-                      <div className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${
-                        member.productivityScore >= 80 ? 'bg-green-200 text-green-800' :
+                      <div className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${member.productivityScore >= 80 ? 'bg-green-200 text-green-800' :
                         member.productivityScore >= 60 ? 'bg-blue-200 text-blue-800' :
-                        member.productivityScore >= 40 ? 'bg-yellow-200 text-yellow-800' :
-                        'bg-red-200 text-red-800'
-                      }`}>
-                        {member.productivityScore >= 80 ? 'Excellent' : 
-                         member.productivityScore >= 60 ? 'Good' :
-                         member.productivityScore >= 40 ? 'Fair' :
-                         'Needs Attention'}
+                          member.productivityScore >= 40 ? 'bg-yellow-200 text-yellow-800' :
+                            'bg-red-200 text-red-800'
+                        }`}>
+                        {member.productivityScore >= 80 ? 'Excellent' :
+                          member.productivityScore >= 60 ? 'Good' :
+                            member.productivityScore >= 40 ? 'Fair' :
+                              'Needs Attention'}
                       </div>
                     </div>
                   </div>
@@ -600,10 +596,10 @@ export default function ProductivityReportPage() {
                             {member.productivityMetrics.option2.score.toFixed(1)}%
                           </div>
                           <p className="text-xs text-slate-600 mb-3">
-                            Emphasizes Redmine with 75% weight vs Daylog 25%
+                            Emphasizes Redmine with 50% weight vs Daylog 50%
                           </p>
                           <div className="text-xs bg-white rounded p-2 text-slate-600 border border-amber-100">
-                            <span className="font-semibold">Formula:</span> (Redmine Rate × 0.75) + (Daylog Rate × 0.25)
+                            <span className="font-semibold">Formula:</span> (Redmine Rate × 0.50) + (Daylog Rate × 0.50)
                           </div>
                         </div>
 
@@ -727,7 +723,7 @@ export default function ProductivityReportPage() {
               </div>
             ))}
         </div>
-        
+
         {/* Pagination Controls */}
         {report.members && report.members.length > ITEMS_PER_PAGE && (
           <div className="mt-6 flex items-center justify-between gap-4">
@@ -738,23 +734,22 @@ export default function ProductivityReportPage() {
             >
               ← Previous
             </button>
-            
+
             <div className="flex items-center gap-2">
               {Array.from({ length: Math.ceil(report.members.length / ITEMS_PER_PAGE) }, (_, i) => i + 1).map((pageNum) => (
                 <button
                   key={pageNum}
                   onClick={() => setCurrentPage(pageNum)}
-                  className={`w-10 h-10 rounded-lg font-semibold transition-colors ${
-                    currentPage === pageNum
-                      ? 'bg-slate-700 text-white'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
+                  className={`w-10 h-10 rounded-lg font-semibold transition-colors ${currentPage === pageNum
+                    ? 'bg-slate-700 text-white'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
                 >
                   {pageNum}
                 </button>
               ))}
             </div>
-            
+
             <button
               onClick={() => setCurrentPage(Math.min(Math.ceil(report.members.length / ITEMS_PER_PAGE), currentPage + 1))}
               disabled={currentPage === Math.ceil(report.members.length / ITEMS_PER_PAGE)}
@@ -774,7 +769,7 @@ export default function ProductivityReportPage() {
         <p className="text-sm text-gray-700 mb-4">
           The productivity score is calculated using a smart weighting system that prioritizes Redmine (office work) data while considering Daylog (home work) activities when available. The system automatically adjusts based on whether team members have Daylog tasks.
         </p>
-        
+
         <div className="space-y-4 mb-6">
           <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-4 border-2 border-indigo-300 shadow-md">
             <h4 className="font-bold text-indigo-900 mb-2">📊 Final Productivity Score (Recommended)</h4>
@@ -784,31 +779,31 @@ export default function ProductivityReportPage() {
             <div className="text-xs text-gray-600 space-y-2 bg-white bg-opacity-60 p-3 rounded mb-2">
               <div className="font-semibold text-gray-800">Calculation Logic:</div>
               <div>• <strong>If NO Daylog Tasks:</strong> Final Score = 100% × Redmine Completion Rate</div>
-              <div>• <strong>If HAS Daylog Tasks:</strong> Final Score = (75% × Redmine Rate) + (25% × Daylog Rate)</div>
+              <div>• <strong>If HAS Daylog Tasks:</strong> Final Score = (50% × Redmine Rate) + (50% × Daylog Rate)</div>
             </div>
-            <p className="text-xs text-gray-600 mt-2"><strong>Best for:</strong> Overall team member productivity evaluation with Redmine as primary metric</p>
+            <p className="text-xs text-gray-600 mt-2"><strong>Best for:</strong> Overall team member productivity evaluation equalizing both metrics</p>
           </div>
 
           <div className="bg-white rounded-lg p-4 border border-blue-200">
-            <h4 className="font-semibold text-blue-900 mb-2">Option 1: Weighted Combined Completion Rate</h4>
+            <h4 className="font-semibold text-blue-900 mb-2">Option 1: Combined Completion Rate (Redmine Focus)</h4>
             <p className="text-sm text-gray-700 mb-2">
-              Combines Daylog and Redmine completion rates with smart weighting. Uses 100% Redmine when no Daylog tasks exist, otherwise weights Redmine at 75% and Daylog at 25%.
+              Combines completion rates with emphasis on Redmine. Uses 100% Redmine when no Daylog tasks exist, otherwise weights Redmine at 75% and Daylog at 25%.
             </p>
             <p className="text-xs text-gray-600 font-mono bg-gray-50 p-2 rounded">
               If no Daylog: 100% × Redmine Rate | If Daylog: (75% × Redmine) + (25% × Daylog)
             </p>
-            <p className="text-xs text-gray-600 mt-2"><strong>Best for:</strong> Overall productivity assessment with Redmine priority</p>
+            <p className="text-xs text-gray-600 mt-2"><strong>Best for:</strong> Primary focus on official office work tracking</p>
           </div>
 
           <div className="bg-white rounded-lg p-4 border border-purple-200">
-            <h4 className="font-semibold text-purple-900 mb-2">Option 2: Weighted Performance (Redmine Focus)</h4>
+            <h4 className="font-semibold text-purple-900 mb-2">Option 2: Weighted Performance (Balanced)</h4>
             <p className="text-sm text-gray-700 mb-2">
-              An alternative view of the same calculation as Option 1. Emphasizes Redmine (75%) over Daylog (25%) to reflect the primary importance of Redmine in project tracking.
+              Balanced view treating Office (Redmine) and Home (Daylog) work equally. Weights both systems at 50% when both exist.
             </p>
             <p className="text-xs text-gray-600 font-mono bg-gray-50 p-2 rounded">
-              If no Daylog: 100% × Redmine Rate | If Daylog: (75% × Redmine) + (25% × Daylog)
+              If no Daylog: 100% × Redmine Rate | If Daylog: (50% × Redmine) + (50% × Daylog)
             </p>
-            <p className="text-xs text-gray-600 mt-2"><strong>Best for:</strong> Project-focused performance evaluation</p>
+            <p className="text-xs text-gray-600 mt-2"><strong>Best for:</strong> Teams where WFH output is considered equal to office output</p>
           </div>
 
           <div className="bg-white rounded-lg p-4 border border-green-200">
