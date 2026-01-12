@@ -56,23 +56,30 @@ export default function CreateActivityPage() {
   const [loading, setLoading] = useState(false);
   const [wfhUsage, setWfhUsage] = useState<{ team?: { used: number; limit: number; remaining: number }; personal?: { total: number; used: number; remaining: number }; summary?: { totalUsed: number; totalAvailable: number }; used?: number; limit?: number; remaining?: number } | null>(null);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
+  const [hasWfhOnDate, setHasWfhOnDate] = useState(false);
 
   useEffect(() => {
     loadUserTeams();
   }, []);
 
   useEffect(() => {
+    if (user?.id && formData.date) {
+      checkWfhOnDate();
+    }
+  }, [formData.date, user?.id]);
+
+  useEffect(() => {
     // If only one team exists, set it as default
     if (userTeams.length === 1 && !formData.teamId) {
-      setFormData(prev => ({ 
-        ...prev, 
+      setFormData(prev => ({
+        ...prev,
         teamId: userTeams[0].id,
         isWfh: true // Default to WFH activity
       }));
     } else if (userTeams.length > 1 && !formData.teamId && userTeams.length > 0) {
       // For multiple teams, set first as default
-      setFormData(prev => ({ 
-        ...prev, 
+      setFormData(prev => ({
+        ...prev,
         teamId: userTeams[0].id,
         isWfh: true // Default to WFH activity
       }));
@@ -85,6 +92,24 @@ export default function CreateActivityPage() {
       loadWfhUsage();
     }
   }, [formData.teamId, formData.isWfh]);
+
+  const checkWfhOnDate = async () => {
+    try {
+      const response = await activityAPI.getActivities({
+        startDate: formData.date,
+        endDate: formData.date,
+        userId: user?.id,
+        limit: 100 // Ensure we get enough to check
+      });
+      const activities = response.data.activities || response.data;
+      if (Array.isArray(activities)) {
+        const found = activities.some((a: any) => a.isWfh);
+        setHasWfhOnDate(found);
+      }
+    } catch (err) {
+      console.error('Failed to check WFH activities for date:', err);
+    }
+  };
 
   const loadUserTeams = async () => {
     try {
@@ -110,7 +135,7 @@ export default function CreateActivityPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
     if (!formData.subject.trim()) {
       const errorMsg = 'Activity subject is required';
       setError(errorMsg);
@@ -158,16 +183,16 @@ export default function CreateActivityPage() {
     // Check WFH limit
     if (formData.isWfh && wfhUsage) {
       // Support both old and new response formats
-      const totalRemaining = wfhUsage.summary?.totalAvailable ? 
-        (wfhUsage.summary.totalAvailable - wfhUsage.summary.totalUsed) : 
+      const totalRemaining = wfhUsage.summary?.totalAvailable ?
+        (wfhUsage.summary.totalAvailable - wfhUsage.summary.totalUsed) :
         (wfhUsage.remaining ?? 0);
-      
-      if (totalRemaining <= 0) {
+
+      if (totalRemaining <= 0 && !hasWfhOnDate) {
         const teamUsed = wfhUsage.team?.used ?? wfhUsage.used ?? 0;
         const teamLimit = wfhUsage.team?.limit ?? wfhUsage.limit ?? 3;
         const personalUsed = wfhUsage.personal?.used ?? 0;
         const personalTotal = wfhUsage.personal?.total ?? 0;
-        
+
         const errorMsg = `WFH limit exceeded. Team: ${teamUsed}/${teamLimit}, Personal: ${personalUsed}/${personalTotal}`;
         setError(errorMsg);
         addNotification({
@@ -183,7 +208,7 @@ export default function CreateActivityPage() {
 
     try {
       const finalProject = formData.project === 'Others' ? formData.projectOther : formData.project;
-      
+
       const activityData = {
         date: formData.date,
         time: formData.time,
@@ -199,7 +224,7 @@ export default function CreateActivityPage() {
       addNotification({
         type: 'success',
         title: 'Success',
-        message: formData.isWfh 
+        message: formData.isWfh
           ? `Activity logged as WFH (${wfhUsage?.remaining ? wfhUsage.remaining - 1 : 0} remaining this month)`
           : 'Activity logged successfully',
       });
@@ -230,17 +255,17 @@ export default function CreateActivityPage() {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
         {/* Error Alert */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-          <svg className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-          </svg>
-          <div>
-            <h3 className="font-semibold text-red-900">Error</h3>
-            <p className="text-red-700 text-sm mt-1">{error}</p>
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+            <svg className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+            <div>
+              <h3 className="font-semibold text-red-900">Error</h3>
+              <p className="text-red-700 text-sm mt-1">{error}</p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
         {/* Form Card */}
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl border border-gray-200 p-10 space-y-8">
@@ -382,7 +407,7 @@ export default function CreateActivityPage() {
                     <div className="flex-1 flex flex-col items-end gap-2">
                       <div className="w-full">
                         <div className="w-full bg-gray-300 rounded-full h-2 overflow-hidden">
-                          <div 
+                          <div
                             className={`h-2 rounded-full transition-all ${wfhUsage.team.remaining > 0 ? 'bg-blue-500' : 'bg-red-500'}`}
                             style={{ width: `${Math.min((wfhUsage.team.used / wfhUsage.team.limit) * 100, 100)}%` }}
                           ></div>
@@ -416,7 +441,7 @@ export default function CreateActivityPage() {
                     <div className="flex-1 flex flex-col items-end gap-2">
                       <div className="w-full">
                         <div className="w-full bg-gray-300 rounded-full h-2 overflow-hidden">
-                          <div 
+                          <div
                             className={`h-2 rounded-full transition-all ${wfhUsage.personal.remaining > 0 ? 'bg-purple-500' : 'bg-orange-500'}`}
                             style={{ width: `${wfhUsage.personal.total > 0 ? Math.min((wfhUsage.personal.used / wfhUsage.personal.total) * 100, 100) : 0}%` }}
                           ></div>
@@ -447,7 +472,7 @@ export default function CreateActivityPage() {
                         </p>
                       </div>
                       <p className={`text-xs mt-2 ${(wfhUsage.remaining ?? 0) > 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                        {(wfhUsage.remaining ?? 0) > 0 
+                        {(wfhUsage.remaining ?? 0) > 0
                           ? `You can log ${wfhUsage.remaining ?? 0} more WFH activities`
                           : 'Limit reached - no more WFH activities allowed'}
                       </p>
@@ -455,7 +480,7 @@ export default function CreateActivityPage() {
                     <div className="flex-1 flex flex-col items-end gap-2">
                       <div className="w-full">
                         <div className="w-full bg-gray-300 rounded-full h-3 overflow-hidden">
-                          <div 
+                          <div
                             className={`h-3 rounded-full transition-all ${(wfhUsage.remaining ?? 0) > 0 ? 'bg-blue-500' : 'bg-red-500'}`}
                             style={{ width: `${Math.min(((wfhUsage.used ?? 0) / (wfhUsage.limit ?? 3)) * 100, 100)}%` }}
                           ></div>
@@ -540,16 +565,16 @@ export default function CreateActivityPage() {
           <div className="flex gap-3 pt-8 border-t-2 border-gray-200">
             <button
               type="submit"
-              disabled={loading || (formData.isWfh && wfhUsage ? (wfhUsage.summary ? (wfhUsage.summary.totalAvailable - wfhUsage.summary.totalUsed) <= 0 : (wfhUsage.remaining ?? 0) <= 0) : false)}
+              disabled={loading || (formData.isWfh && wfhUsage && !hasWfhOnDate ? (wfhUsage.summary ? (wfhUsage.summary.totalAvailable - wfhUsage.summary.totalUsed) <= 0 : (wfhUsage.remaining ?? 0) <= 0) : false)}
               className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-4 rounded-xl hover:shadow-xl hover:shadow-purple-300 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 text-base"
-              title={formData.isWfh && wfhUsage && (wfhUsage.summary ? (wfhUsage.summary.totalAvailable - wfhUsage.summary.totalUsed) <= 0 : (wfhUsage.remaining ?? 0) <= 0) ? 'WFH quota exceeded for this month' : ''}
+              title={formData.isWfh && wfhUsage && !hasWfhOnDate && (wfhUsage.summary ? (wfhUsage.summary.totalAvailable - wfhUsage.summary.totalUsed) <= 0 : (wfhUsage.remaining ?? 0) <= 0) ? 'WFH quota exceeded for this month' : ''}
             >
               {loading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                   <span>Saving...</span>
                 </>
-              ) : formData.isWfh && wfhUsage && (wfhUsage.summary ? (wfhUsage.summary.totalAvailable - wfhUsage.summary.totalUsed) <= 0 : (wfhUsage.remaining ?? 0) <= 0) ? (
+              ) : formData.isWfh && wfhUsage && !hasWfhOnDate && (wfhUsage.summary ? (wfhUsage.summary.totalAvailable - wfhUsage.summary.totalUsed) <= 0 : (wfhUsage.remaining ?? 0) <= 0) ? (
                 <>
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M13.477 14.89A6 6 0 112.5 5.5h2.016A6 6 0 0012 4c3.314 0 6 2.686 6 6 0 .26-.016.52-.048.776l2.086-.587A.5.5 0 0121 9.5v-4a.5.5 0 00-.5-.5h-4a.5.5 0 00-.467.683l.72 2.16a.5.5 0 00.466.317h2.01A5 5 0 107 9.5a.5.5 0 00-1 0 6 6 0 106.477-4.61z" clipRule="evenodd" />
@@ -616,11 +641,11 @@ export default function CreateActivityPage() {
                       {/* Big Number Display */}
                       <div className="text-center">
                         <div className="inline-flex flex-col items-center gap-1">
-                        <div className={`text-4xl font-black ${(wfhUsage.remaining ?? 0) > 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                          {(wfhUsage.remaining ?? 0) > 0 ? (wfhUsage.remaining ?? 0) : '0'}
-                        </div>
-                        <p className={`text-xs font-semibold ${(wfhUsage.remaining ?? 0) > 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                          {(wfhUsage.remaining ?? 0) === 1 ? 'day remaining' : 'days remaining'}
+                          <div className={`text-4xl font-black ${(wfhUsage.remaining ?? 0) > 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                            {(wfhUsage.remaining ?? 0) > 0 ? (wfhUsage.remaining ?? 0) : '0'}
+                          </div>
+                          <p className={`text-xs font-semibold ${(wfhUsage.remaining ?? 0) > 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                            {(wfhUsage.remaining ?? 0) === 1 ? 'day remaining' : 'days remaining'}
                           </p>
                         </div>
                       </div>
@@ -632,7 +657,7 @@ export default function CreateActivityPage() {
                           <p className="text-xs font-bold text-gray-700">{Math.round(((wfhUsage.used ?? 0) / (wfhUsage.limit ?? 1)) * 100)}%</p>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-sm">
-                          <div 
+                          <div
                             className={`h-3 rounded-full transition-all ${(wfhUsage.remaining ?? 0) > 0 ? 'bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700' : 'bg-gradient-to-r from-red-500 via-red-600 to-red-700'}`}
                             style={{ width: `${Math.min(((wfhUsage.used ?? 0) / (wfhUsage.limit ?? 1)) * 100, 100)}%` }}
                           ></div>
@@ -641,7 +666,7 @@ export default function CreateActivityPage() {
 
                       {/* Status Badge */}
                       <div className={`px-3 py-2 rounded-lg text-center font-semibold text-xs ${(wfhUsage.remaining ?? 0) > 0 ? 'bg-blue-200 text-blue-800' : 'bg-red-200 text-red-800'}`}>
-                        {(wfhUsage.remaining ?? 0) > 0 
+                        {(wfhUsage.remaining ?? 0) > 0
                           ? `✓ You can log ${wfhUsage.remaining ?? 0} more WFH activit${(wfhUsage.remaining ?? 0) === 1 ? 'y' : 'ies'} this month`
                           : '⛔ WFH quota limit reached for this month'}
                       </div>
@@ -649,7 +674,7 @@ export default function CreateActivityPage() {
                       {/* Info Message */}
                       <div className={`px-3 py-2 rounded-lg text-xs font-medium ${(wfhUsage.remaining ?? 0) > 0 ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>
                         <p>
-                          {(wfhUsage.remaining ?? 0) > 0 
+                          {(wfhUsage.remaining ?? 0) > 0
                             ? `${Math.ceil(((wfhUsage.remaining ?? 0) / (wfhUsage.limit ?? 1)) * 100)}% of your quota available`
                             : 'No WFH activities can be logged until next month'}
                         </p>
