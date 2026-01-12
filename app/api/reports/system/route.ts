@@ -62,11 +62,6 @@ export async function GET(request: NextRequest) {
       select: { userId: true },
     });
 
-    // Get all poker sessions
-    const pokerSessions = await prisma.pokerSession.findMany({
-      select: { teamId: true, status: true },
-    });
-
     // Calculate system metrics
     const totalActivities = activities.length;
     const completedActivities = activities.filter((a: any) => a.status === 'Done').length;
@@ -80,7 +75,6 @@ export async function GET(request: NextRequest) {
       const teamWfh = wfhRecords.filter((w: any) =>
         teamMemberIds.includes(w.userId)
       );
-      const teamPokerSessions = pokerSessions.filter((p: any) => p.teamId === team.id);
 
       return {
         teamId: team.id,
@@ -95,8 +89,6 @@ export async function GET(request: NextRequest) {
               : '0',
           blockedTasks: teamActivities.filter((a: any) => a.status === 'blocked').length,
           wfhDays: teamWfh.length,
-          pokerSessions: teamPokerSessions.length,
-          completedPokerSessions: teamPokerSessions.filter((p: any) => p.status === 'completed').length,
         },
       };
     });
@@ -113,7 +105,6 @@ export async function GET(request: NextRequest) {
             ? ((completedActivities / totalActivities) * 100).toFixed(1)
             : '0',
         totalWfhDays: wfhRecords.length,
-        totalPokerSessions: pokerSessions.length,
       },
       teams: teamStats.sort((a: any, b: any) =>
         b.stats.totalActivities - a.stats.totalActivities

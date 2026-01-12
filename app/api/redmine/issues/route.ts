@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { project_id, tracker_id, subject, description, priority_id, assigned_to_id } = body;
+    const { project_id, tracker_id, subject, description, priority_id, assigned_to_id, parent_issue_id } = body;
 
     if (!project_id || !subject) {
       return NextResponse.json({ error: 'project_id and subject are required' }, { status: 400 });
@@ -109,6 +109,10 @@ export async function POST(request: NextRequest) {
 
     if (assigned_to_id) {
       issueData.assigned_to_id = assigned_to_id;
+    }
+
+    if (parent_issue_id) {
+      issueData.parent_issue_id = parseInt(parent_issue_id as string);
     }
 
     const response = await axios.post(

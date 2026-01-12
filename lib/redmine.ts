@@ -263,7 +263,7 @@ export class RedmineService {
   }): Promise<{ issues: RedmineIssue[]; total_count: number; offset: number; limit: number }> {
     try {
       const query = new URLSearchParams();
-      
+
       // Build filter parameters
       if (params?.project_id) {
         query.append('project_id', String(params.project_id));
@@ -291,14 +291,18 @@ export class RedmineService {
   /**
    * Get a single issue by ID
    */
-  public async getIssue(id: number | string): Promise<RedmineIssue> {
+  public async getIssue(id: number | string, options?: { include?: string[] }): Promise<RedmineIssue> {
     try {
-      const cacheKey = `issue_${id}`;
+      const cacheKey = `issue_${id}_${options?.include?.join(',') || 'default'}`;
       const cached = this.getFromCache(cacheKey);
       if (cached) return cached;
 
+      const defaultIncludes = ['journals', 'attachments', 'relations', 'changesets'];
+      const includes = options?.include || defaultIncludes;
+      const includeParam = includes.length > 0 ? `?include=${includes.join(',')}` : '';
+
       const response = await this.fetchApi(
-        `/issues/${id}.json?include=journals,attachments,relations,changesets`
+        `/issues/${id}.json${includeParam}`
       );
       this.setCache(cacheKey, response.issue);
       return response.issue;

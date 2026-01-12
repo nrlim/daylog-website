@@ -41,7 +41,10 @@ export async function GET(
       creds.password
     );
 
-    const issue = await redmine.getIssue(parseInt(params.id));
+    const { searchParams } = new URL(request.url);
+    const include = searchParams.get('include')?.split(',');
+
+    const issue = await redmine.getIssue(parseInt(params.id), { include });
 
     return NextResponse.json(issue);
   } catch (error: any) {
@@ -69,7 +72,7 @@ export async function PUT(
 
     const body = await request.json();
     const { statusId, status_id, notes, subject, description, priority_id, assigned_to_id } = body;
-    
+
     // Support both statusId and status_id for drag-drop
     const finalStatusId = statusId || status_id;
 
