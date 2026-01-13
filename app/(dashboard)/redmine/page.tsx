@@ -98,7 +98,15 @@ export default function RedmineTicketsPage() {
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Fetch Redmine user and projects on mount
+  /* 
+    Existing States...
+  */
+  // New State for GitLab Fetch
+  const [isFetchingCommit, setIsFetchingCommit] = useState(false);
+  const [fetchedCommit, setFetchedCommit] = useState<any>(null);
+  const [gitlabUrlNeedsVerification, setGitlabUrlNeedsVerification] = useState(false); // Track if URL entered but not verified
+
+  // Initialize Board
   useEffect(() => {
     if (!user) {
       router.push('/');
@@ -115,16 +123,16 @@ export default function RedmineTicketsPage() {
           api.get('/redmine/trackers'),
         ]);
 
-        console.log('User response:', userRes?.data);
+
 
         if (userRes?.data?.user?.id) {
           setAssigneeFilter(userRes.data.user.id.toString());
           setCurrentRedmineUserId(userRes.data.user.id);
-          console.log('Current Redmine user ID set to:', userRes.data.user.id);
+
         } else {
           setAssigneeFilter('all');
           setCurrentRedmineUserId(null);
-          console.warn('Could not fetch current user ID');
+
         }
 
         if (projectsRes?.data?.projects) {
@@ -133,7 +141,7 @@ export default function RedmineTicketsPage() {
 
         if (trackersRes?.data?.trackers) {
           setTrackers(trackersRes.data.trackers);
-          console.log('Trackers loaded:', trackersRes.data.trackers);
+
         }
       } catch (error) {
         console.error('Failed to initialize board:', error);
@@ -222,7 +230,7 @@ export default function RedmineTicketsPage() {
       }
     } catch (error: any) {
       if (axios.isCancel(error)) {
-        console.log('Request canceled', error.message);
+
         return;
       }
       addNotification({
@@ -932,10 +940,53 @@ export default function RedmineTicketsPage() {
               {/* Description */}
               <div>
                 <h3 className="text-sm font-semibold text-slate-300 mb-2">Description</h3>
-                <p className="text-slate-200 text-sm bg-slate-700/30 p-3 rounded border border-slate-600">
+                <p className="text-slate-200 text-sm bg-slate-700/30 p-3 rounded border border-slate-600 whitespace-pre-wrap">
                   {selectedIssue.description || 'No description provided'}
                 </p>
               </div>
+
+              {/* GitLab Commit Link */}
+              {(() => {
+                // Extract GitLab URL from description
+                const description = selectedIssue.description || '';
+                const gitlabMatch = description.match(/\*\*GitLab Commit:\*\* \[([^\]]+)\]\(([^)]+)\)/);
+
+                if (gitlabMatch) {
+                  const commitId = gitlabMatch[1]; // e.g., "e7ab46dc"
+                  const commitUrl = gitlabMatch[2]; // Full URL
+
+                  return (
+                    <div className="bg-gradient-to-r from-orange-900/30 to-orange-800/30 border border-orange-600/50 rounded-lg p-4">
+                      <div className="flex items-center gap-3">
+                        {/* GitLab Icon */}
+                        <div className="bg-orange-600 p-2 rounded-lg flex-shrink-0">
+                          <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M23.546 10.93L13.067.452c-.604-.603-1.582-.603-2.188 0L8.708 2.627l2.76 2.76c.645-.215 1.379-.07 1.889.441.516.515.658 1.258.428 1.9l2.658 2.66c.645-.23 1.387-.096 1.9.428.717.717.717 1.88 0 2.597-.719.717-1.881.717-2.598 0-.539-.541-.674-1.337-.404-1.996L12.86 8.955v6.525c.176.086.342.203.488.348.713.717.713 1.88 0 2.598-.719.717-1.881.717-2.598 0-.719-.718-.719-1.881 0-2.598.177-.177.384-.317.605-.406V8.835c-.221-.089-.428-.23-.605-.406-.545-.545-.676-1.342-.396-2.009L7.636 3.7.45 10.881c-.6.605-.6 1.584 0 2.189l10.48 10.477c.604.604 1.582.604 2.186 0l10.43-10.43c.605-.603.605-1.582 0-2.187" />
+                          </svg>
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-sm font-bold text-orange-300 mb-1">GitLab Commit</h3>
+                          <p className="text-xs text-orange-200/80 font-mono truncate">{commitId}</p>
+                        </div>
+
+                        <a
+                          href={commitUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors flex items-center gap-2 flex-shrink-0"
+                        >
+                          View Commit
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </a>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
 
               {/* Details Grid */}
               <div className="grid grid-cols-2 gap-4">
@@ -996,305 +1047,427 @@ export default function RedmineTicketsPage() {
       }
 
       {/* Create Ticket Modal */}
-      {
-        showCreateModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-slate-800 rounded-lg border border-slate-600 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-              {/* Modal Header */}
-              <div className="sticky top-0 bg-gradient-to-r from-slate-800 to-slate-700 border-b border-slate-600 px-6 py-4 flex justify-between items-center">
-                <h2 className="text-xl font-bold text-white">
-                  {createModalDefaults?.parent_issue_id ? 'Create Subtask' : 'Create New Ticket'}
-                </h2>
-                <button
-                  onClick={() => {
-                    setShowCreateModal(false);
-                    setCreateModalDefaults(null);
-                  }}
-                  className="text-slate-400 hover:text-white transition-colors font-bold text-lg"
-                >
-                  ×
-                </button>
-              </div>
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-lg border border-slate-600 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-gradient-to-r from-slate-800 to-slate-700 border-b border-slate-600 px-6 py-4 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-white">
+                {createModalDefaults?.parent_issue_id ? 'Create Subtask' : 'Create New Ticket'}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setCreateModalDefaults(null);
+                  // Clear GitLab verification state
+                  setFetchedCommit(null);
+                  setGitlabUrlNeedsVerification(false);
+                  setIsFetchingCommit(false);
+                }}
+                className="text-slate-400 hover:text-white transition-colors font-bold text-lg"
+              >
+                ×
+              </button>
+            </div>
 
-              {/* Modal Content */}
-              <div className="px-6 py-4 space-y-4">
-                <form className="space-y-4" onSubmit={async (e) => {
-                  e.preventDefault();
-                  const formData = new FormData(e.currentTarget);
-                  try {
-                    const payload: any = {
-                      subject: formData.get('subject'),
-                      description: formData.get('description'),
-                      project_id: parseInt(formData.get('project_id') as string),
-                      tracker_id: parseInt(formData.get('tracker_id') as string),
-                      priority_id: parseInt(formData.get('priority_id') as string),
-                      assigned_to_id: currentRedmineUserId,
-                    };
+            {/* Modal Content */}
+            <div className="px-6 py-4 space-y-4">
+              <form className="space-y-4" onSubmit={async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
 
-                    // Priority to state for subtask mode
-                    if (createModalDefaults?.parent_issue_id) {
-                      payload.parent_issue_id = Number(createModalDefaults.parent_issue_id);
-                    } else {
-                      const parentId = formData.get('parent_issue_id');
-                      if (parentId) {
-                        payload.parent_issue_id = parseInt(parentId as string);
-                      }
-                    }
-
-                    console.log('Creating ticket with payload:', payload);
-
-                    const response = await api.post('/redmine/issues', payload);
-                    const ticketTitle = createModalDefaults?.parent_issue_id
-                      ? `Subtask created (Parent #${createModalDefaults.parent_issue_id})`
-                      : 'Ticket Created';
-
-                    addNotification({
-                      type: 'success',
-                      title: ticketTitle,
-                      message: `Ticket #${response.data.issue?.id} created successfully`,
-                      duration: 3000,
-                    });
-                    setShowCreateModal(false);
-                    setCreateModalDefaults(null);
-                    // Refresh issues
-                    window.location.reload();
-                  } catch (error: any) {
-                    addNotification({
-                      type: 'error',
-                      title: 'Failed to Create Ticket',
-                      message: error.response?.data?.error || error.message || 'Unknown error occurred',
-                      duration: 5000,
-                    });
+                const gitlabRef = formData.get('gitlab_ref') as string;
+                if (gitlabRef && gitlabUrlNeedsVerification) {
+                  addNotification({
+                    type: 'error',
+                    title: 'GitLab URL Not Verified',
+                    message: 'Please click the "Fetch" button to verify the GitLab commit before creating the task.',
+                    duration: 5000,
+                  });
+                  // Highlight the fetch button
+                  const fetchButton = document.querySelector('#gitlab-fetch-button');
+                  if (fetchButton) {
+                    fetchButton.classList.add('animate-pulse');
+                    setTimeout(() => fetchButton.classList.remove('animate-pulse'), 3000);
                   }
-                }}>
-                  {/* Parent Task Display (Visible & Read-only) */}
-                  {createModalDefaults?.parent_issue_id && (
-                    <div className="bg-blue-50/50 border border-blue-200 rounded-lg p-3 mb-4">
-                      <label className="block text-xs font-bold text-blue-800 uppercase tracking-wide mb-1">
-                        Parent Task
-                      </label>
-                      <div className="flex items-center gap-2 text-sm text-blue-900">
-                        <span className="font-mono font-bold">#{createModalDefaults.parent_issue_id}</span>
-                        <span className="truncate opacity-80">{createModalDefaults.parent_subject}</span>
-                      </div>
-                      <input type="hidden" name="parent_issue_id" value={createModalDefaults.parent_issue_id} />
+                  return; // Stop form submission
+                }
+
+                try {
+                  let description = formData.get('description') as string || '';
+                  let subject = formData.get('subject') as string;
+
+                  // Standard GitLab Link logic (existing)
+                  if (gitlabRef) {
+                    const baseUrl = process.env.NEXT_PUBLIC_GITLAB_BASE_URL;
+                    let finalRef = gitlabRef;
+                    if (gitlabRef.startsWith('http')) {
+                      finalRef = gitlabRef;
+                    } else if (baseUrl) {
+                      const cleanBase = baseUrl.replace(/\/$/, '');
+                      const cleanRef = gitlabRef.replace(/^\//, '');
+                      finalRef = `${cleanBase}/${cleanRef}`;
+                    }
+                    // If fetched commit data exists, append rich info
+                    if (fetchedCommit) {
+                      description += `\n\n---\n**GitLab Commit:** [${fetchedCommit.short_id}](${fetchedCommit.web_url})\n**Author:** ${fetchedCommit.author_name}\n**Message:** ${fetchedCommit.message}`;
+                    } else {
+                      // Fallback to simple link
+                      description += `\n\n---\n**GitLab Commit:** ${finalRef}`;
+                    }
+                  }
+
+                  const payload: any = {
+                    subject: subject,
+                    description: description,
+                    project_id: parseInt(formData.get('project_id') as string),
+                    tracker_id: parseInt(formData.get('tracker_id') as string),
+                    priority_id: parseInt(formData.get('priority_id') as string),
+                    assigned_to_id: currentRedmineUserId,
+                  };
+
+                  // Priority to state for subtask mode
+                  if (createModalDefaults?.parent_issue_id) {
+                    payload.parent_issue_id = Number(createModalDefaults.parent_issue_id);
+                  } else {
+                    const parentId = formData.get('parent_issue_id');
+                    if (parentId) {
+                      payload.parent_issue_id = parseInt(parentId as string);
+                    }
+                  }
+
+
+
+                  const response = await api.post('/redmine/issues', payload);
+                  const ticketTitle = createModalDefaults?.parent_issue_id
+                    ? `Subtask created (Parent #${createModalDefaults.parent_issue_id})`
+                    : 'Ticket Created';
+
+                  addNotification({
+                    type: 'success',
+                    title: ticketTitle,
+                    message: `Ticket #${response.data.issue?.id} created successfully`,
+                    duration: 3000,
+                  });
+                  setShowCreateModal(false);
+                  setCreateModalDefaults(null);
+                  // Clear GitLab verification state
+                  setFetchedCommit(null);
+                  setGitlabUrlNeedsVerification(false);
+                  setIsFetchingCommit(false);
+                  // Refresh issues
+                  window.location.reload();
+                } catch (error: any) {
+                  addNotification({
+                    type: 'error',
+                    title: 'Failed to Create Ticket',
+                    message: error.response?.data?.error || error.message || 'Unknown error occurred',
+                    duration: 5000,
+                  });
+                }
+              }}>
+                {/* Parent Task Display (Visible & Read-only) */}
+                {createModalDefaults?.parent_issue_id && (
+                  <div className="bg-blue-50/50 border border-blue-200 rounded-lg p-3 mb-4">
+                    <label className="block text-xs font-bold text-blue-800 uppercase tracking-wide mb-1">
+                      Parent Task
+                    </label>
+                    <div className="flex items-center gap-2 text-sm text-blue-900">
+                      <span className="font-mono font-bold">#{createModalDefaults.parent_issue_id}</span>
+                      <span className="truncate opacity-80">{createModalDefaults.parent_subject}</span>
+                    </div>
+                    <input type="hidden" name="parent_issue_id" value={createModalDefaults.parent_issue_id} />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-300 mb-2">Subject *</label>
+                  <input
+                    type="text"
+                    name="subject"
+                    required
+                    defaultValue={createModalDefaults?.subject || ''}
+                    className="w-full px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder={createModalDefaults?.parent_issue_id ? "Subtask subject" : "Ticket subject"}
+                    autoFocus
+                  />
+                </div>
+
+                {/* GitLab Commit / Link */}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-300 mb-2">
+                    GitLab Commit ID / Link <span className="text-slate-500 font-normal">(Optional)</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      name="gitlab_ref"
+                      id="gitlab_ref_input"
+                      className="flex-1 px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Paste GitLab commit URL (works with any repo!)"
+                      onChange={(e) => {
+                        if (fetchedCommit) setFetchedCommit(null);
+                        // Mark as needing verification if user enters a URL
+                        if (e.target.value.trim()) {
+                          setGitlabUrlNeedsVerification(true);
+                        } else {
+                          setGitlabUrlNeedsVerification(false);
+                        }
+                      }}
+                    />
+                    <button
+                      id="gitlab-fetch-button"
+                      type="button"
+                      disabled={isFetchingCommit}
+                      onClick={async () => {
+                        const input = (document.getElementById('gitlab_ref_input') as HTMLInputElement).value;
+                        if (!input) return;
+
+                        // Send the FULL input to API - don't extract SHA here!
+                        // The backend API will handle URL parsing automatically
+
+
+                        setIsFetchingCommit(true);
+                        try {
+                          const res = await api.get(`/gitlab/commit?sha=${encodeURIComponent(input)}`);
+                          if (res.data) {
+                            setFetchedCommit(res.data);
+                            setGitlabUrlNeedsVerification(false); // ✅ Mark as verified!
+                            const titleInput = document.querySelector('input[name="subject"]') as HTMLInputElement;
+                            if (titleInput && !titleInput.value) {
+                              titleInput.value = res.data.title;
+                            }
+                            const descInput = document.querySelector('textarea[name="description"]') as HTMLTextAreaElement;
+                            if (descInput && !descInput.value) {
+                              descInput.value = res.data.message;
+                            }
+                            addNotification({ type: 'success', title: 'Commit Verified ✅', message: 'GitLab commit verified and details loaded!', duration: 2000 });
+                          }
+                        } catch (err: any) {
+                          addNotification({ type: 'error', title: 'Fetch Failed', message: err.response?.data?.error || 'Could not find commit', duration: 3000 });
+                        } finally {
+                          setIsFetchingCommit(false);
+                        }
+                      }}
+                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 text-sm font-semibold disabled:opacity-50"
+                    >
+                      {isFetchingCommit ? '...' : 'Verify'}
+                    </button>
+                  </div>
+                  {fetchedCommit && (
+                    <div className="mt-2 bg-green-900/20 border border-green-500/30 rounded p-2 text-xs text-green-100 flex flex-col gap-1">
+                      <div className="font-bold">✅ Verified Commit: {fetchedCommit.short_id}</div>
+                      <div className="truncate opacity-80">{fetchedCommit.title}</div>
+                      <div className="opacity-60 text-[10px]">{fetchedCommit.author_name} • {new Date(fetchedCommit.created_at).toLocaleDateString()}</div>
                     </div>
                   )}
+                </div>
 
+                <div>
+                  <label className="block text-sm font-semibold text-slate-300 mb-2">Description</label>
+                  <textarea
+                    name="description"
+                    rows={4}
+                    className="w-full px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Ticket description"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-slate-300 mb-2">Subject *</label>
-                    <input
-                      type="text"
-                      name="subject"
-                      required
-                      defaultValue={createModalDefaults?.subject || ''}
-                      className="w-full px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder={createModalDefaults?.parent_issue_id ? "Subtask subject" : "Ticket subject"}
-                      autoFocus
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-300 mb-2">Description</label>
-                    <textarea
-                      name="description"
-                      rows={4}
-                      className="w-full px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Ticket description"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-300 mb-2">Project *</label>
-                      <select
-                        name="project_id"
-                        required
-                        defaultValue={createModalDefaults?.project_id || (projectFilter !== 'all' ? projectFilter : '')}
-                        className="w-full px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">Select Project</option>
-                        {projects.map((p) => (
-                          <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-300 mb-2">Priority *</label>
-                      <select
-                        name="priority_id"
-                        required
-                        defaultValue="2"
-                        className="w-full px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="1">Low</option>
-                        <option value="2">Normal</option>
-                        <option value="3">High</option>
-                        <option value="4">Urgent</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-300 mb-2">Type *</label>
+                    <label className="block text-sm font-semibold text-slate-300 mb-2">Project *</label>
                     <select
-                      name="tracker_id"
+                      name="project_id"
                       required
-                      defaultValue={createModalDefaults?.tracker_id || ''}
+                      defaultValue={createModalDefaults?.project_id || (projectFilter !== 'all' ? projectFilter : '')}
                       className="w-full px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      {trackers.length > 0 ? (
-                        trackers.map((tracker) => (
-                          <option key={tracker.id} value={tracker.id}>
-                            {tracker.name}
-                          </option>
-                        ))
-                      ) : (
-                        <option value="">Loading trackers...</option>
-                      )}
+                      <option value="">Select Project</option>
+                      {projects.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
                     </select>
                   </div>
-                  <div className="flex gap-3 pt-4 border-t border-slate-600">
-                    <button
-                      type="submit"
-                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-500 transition-colors"
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-300 mb-2">Priority *</label>
+                    <select
+                      name="priority_id"
+                      required
+                      defaultValue="2"
+                      className="w-full px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      {createModalDefaults?.parent_issue_id ? 'Create Subtask' : 'Create Ticket'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowCreateModal(false);
-                        setCreateModalDefaults(null);
-                      }}
-                      className="flex-1 px-4 py-2 bg-slate-700 text-white rounded-lg font-semibold hover:bg-slate-600 transition-colors"
-                    >
-                      Cancel
-                    </button>
+                      <option value="1">Low</option>
+                      <option value="2">Normal</option>
+                      <option value="3">High</option>
+                      <option value="4">Urgent</option>
+                    </select>
                   </div>
-                </form>
-              </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-300 mb-2">Type *</label>
+                  <select
+                    name="tracker_id"
+                    required
+                    defaultValue={createModalDefaults?.tracker_id || ''}
+                    className="w-full px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {trackers.length > 0 ? (
+                      trackers.map((tracker) => (
+                        <option key={tracker.id} value={tracker.id}>
+                          {tracker.name}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="">Loading trackers...</option>
+                    )}
+                  </select>
+                </div>
+                <div className="flex gap-3 pt-4 border-t border-slate-600">
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-500 transition-colors"
+                  >
+                    {createModalDefaults?.parent_issue_id ? 'Create Subtask' : 'Create Ticket'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCreateModal(false);
+                      setCreateModalDefaults(null);
+                      // Clear GitLab verification state
+                      setFetchedCommit(null);
+                      setGitlabUrlNeedsVerification(false);
+                      setIsFetchingCommit(false);
+                    }}
+                    className="flex-1 px-4 py-2 bg-slate-700 text-white rounded-lg font-semibold hover:bg-slate-600 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
-        )
-      }
+        </div>
+      )}
 
       {/* Edit Ticket Modal */}
-      {
-        editingIssue && !isViewMode && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-slate-800 rounded-lg border border-slate-600 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-              {/* Modal Header */}
-              <div className="sticky top-0 bg-gradient-to-r from-slate-800 to-slate-700 border-b border-slate-600 px-6 py-4 flex justify-between items-center">
-                <h2 className="text-xl font-bold text-white">Edit Ticket #{editingIssue.id}</h2>
-                <button
-                  onClick={() => {
-                    setEditingIssue(null);
-                    setIsViewMode(true);
-                  }}
-                  className="text-slate-400 hover:text-white transition-colors font-bold text-lg"
-                >
-                  ×
-                </button>
-              </div>
+      {editingIssue && !isViewMode && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-lg border border-slate-600 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-gradient-to-r from-slate-800 to-slate-700 border-b border-slate-600 px-6 py-4 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-white">Edit Ticket #{editingIssue?.id}</h2>
+              <button
+                onClick={() => {
+                  setEditingIssue(null);
+                  setIsViewMode(true);
+                }}
+                className="text-slate-400 hover:text-white transition-colors font-bold text-lg"
+              >
+                ×
+              </button>
+            </div>
 
-              {/* Modal Content */}
-              <div className="px-6 py-4 space-y-4">
-                <form className="space-y-4" onSubmit={async (e) => {
-                  e.preventDefault();
-                  const formData = new FormData(e.currentTarget);
-                  try {
-                    await api.put(`/redmine/issues/${editingIssue.id}`, {
-                      subject: formData.get('subject'),
-                      description: formData.get('description'),
-                      priority_id: formData.get('priority_id'),
-                      assigned_to_id: formData.get('assigned_to_id') || null,
-                    });
-                    addNotification({
-                      type: 'success',
-                      title: 'Ticket Updated',
-                      message: 'Ticket has been updated successfully',
-                      duration: 3000,
-                    });
-                    setEditingIssue(null);
-                    setSelectedIssue(null);
-                    // Refresh issues
-                    window.location.reload();
-                  } catch (error: any) {
-                    addNotification({
-                      type: 'error',
-                      title: 'Failed to Update Ticket',
-                      message: error.message,
-                      duration: 5000,
-                    });
-                  }
-                }}>
+            {/* Modal Content */}
+            <div className="px-6 py-4 space-y-4">
+              <form className="space-y-4" onSubmit={async (e) => {
+                e.preventDefault();
+                if (!editingIssue) return;
+                const formData = new FormData(e.currentTarget);
+                try {
+                  await api.put(`/redmine/issues/${editingIssue.id}`, {
+                    subject: formData.get('subject'),
+                    description: formData.get('description'),
+                    priority_id: formData.get('priority_id'),
+                    assigned_to_id: formData.get('assigned_to_id') || null,
+                  });
+                  addNotification({
+                    type: 'success',
+                    title: 'Ticket Updated',
+                    message: 'Ticket has been updated successfully',
+                    duration: 3000,
+                  });
+                  setEditingIssue(null);
+                  setSelectedIssue(null);
+                  // Refresh issues
+                  window.location.reload();
+                } catch (error: any) {
+                  addNotification({
+                    type: 'error',
+                    title: 'Failed to Update Ticket',
+                    message: error.message,
+                    duration: 5000,
+                  });
+                }
+              }}>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-300 mb-2">Subject</label>
+                  <input
+                    type="text"
+                    name="subject"
+                    defaultValue={editingIssue?.subject}
+                    className="w-full px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-300 mb-2">Description</label>
+                  <textarea
+                    name="description"
+                    rows={4}
+                    defaultValue={editingIssue?.description}
+                    className="w-full px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-slate-300 mb-2">Subject</label>
-                    <input
-                      type="text"
-                      name="subject"
-                      defaultValue={editingIssue.subject}
+                    <label className="block text-sm font-semibold text-slate-300 mb-2">Priority</label>
+                    <select
+                      name="priority_id"
+                      defaultValue={editingIssue?.priority.id}
                       className="w-full px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    >
+                      <option value="1">Low</option>
+                      <option value="2">Normal</option>
+                      <option value="3">High</option>
+                      <option value="4">Urgent</option>
+                    </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-slate-300 mb-2">Description</label>
-                    <textarea
-                      name="description"
-                      rows={4}
-                      defaultValue={editingIssue.description}
+                    <label className="block text-sm font-semibold text-slate-300 mb-2">Assignee</label>
+                    <select
+                      name="assigned_to_id"
+                      defaultValue={editingIssue?.assigned_to?.id || ''}
                       className="w-full px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-300 mb-2">Priority</label>
-                      <select
-                        name="priority_id"
-                        defaultValue={editingIssue.priority.id}
-                        className="w-full px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="1">Low</option>
-                        <option value="2">Normal</option>
-                        <option value="3">High</option>
-                        <option value="4">Urgent</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-300 mb-2">Assignee</label>
-                      <select
-                        name="assigned_to_id"
-                        defaultValue={editingIssue.assigned_to?.id || ''}
-                        className="w-full px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">Unassigned</option>
-                        {assignees.map((a) => (
-                          <option key={a.id} value={a.id}>{a.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <div className="flex gap-3 pt-4 border-t border-slate-600">
-                    <button
-                      type="submit"
-                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-500 transition-colors"
                     >
-                      Save Changes
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingIssue(null);
-                        setIsViewMode(true);
-                      }}
-                      className="flex-1 px-4 py-2 bg-slate-700 text-white rounded-lg font-semibold hover:bg-slate-600 transition-colors"
-                    >
-                      Cancel
-                    </button>
+                      <option value="">Unassigned</option>
+                      {assignees.map((a) => (
+                        <option key={a.id} value={a.id}>{a.name}</option>
+                      ))}
+                    </select>
                   </div>
-                </form>
-              </div>
+                </div>
+                <div className="flex gap-3 pt-4 border-t border-slate-600">
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-500 transition-colors"
+                  >
+                    Save Changes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingIssue(null);
+                      setIsViewMode(true);
+                    }}
+                    className="flex-1 px-4 py-2 bg-slate-700 text-white rounded-lg font-semibold hover:bg-slate-600 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
-        )
+        </div>
+      )
       }
     </div >
   );
