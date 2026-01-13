@@ -125,14 +125,58 @@ export default function RedmineTicketsPage() {
 
 
 
+
+        // Load saved filters
+        const savedProject = localStorage.getItem('redmine_projectFilter');
+        const savedAssignee = localStorage.getItem('redmine_assigneeFilter');
+        const savedTracker = localStorage.getItem('redmine_trackerFilter');
+        const savedVersion = localStorage.getItem('redmine_versionFilter');
+        const savedHiddenCols = localStorage.getItem('redmine_hiddenColumns');
+
+        // Apply saved filters or defaults
+        if (savedProject) {
+          setProjectFilter(savedProject);
+          setTempProjectFilter(savedProject);
+        }
+        if (savedTracker) {
+          setTrackerFilter(savedTracker);
+          setTempTrackerFilter(savedTracker);
+        }
+        if (savedVersion) {
+          setVersionFilter(savedVersion);
+          setTempVersionFilter(savedVersion);
+        }
+        if (savedHiddenCols) {
+          try {
+            const parsedCols = JSON.parse(savedHiddenCols);
+            setHiddenColumns(parsedCols);
+            setTempHiddenColumns(parsedCols);
+          } catch (e) {
+            // usage default if parse fail
+          }
+        }
+
         if (userRes?.data?.user?.id) {
-          setAssigneeFilter(userRes.data.user.id.toString());
           setCurrentRedmineUserId(userRes.data.user.id);
 
+          // Use saved assignee if exists, otherwise default to current user
+          if (savedAssignee) {
+            setAssigneeFilter(savedAssignee);
+            setTempAssigneeFilter(savedAssignee);
+          } else {
+            setAssigneeFilter(userRes.data.user.id.toString());
+            setTempAssigneeFilter(userRes.data.user.id.toString());
+          }
         } else {
-          setAssigneeFilter('all');
+          // No user found, default to all if no saved preference
+          if (savedAssignee) {
+            setAssigneeFilter(savedAssignee);
+            setTempAssigneeFilter(savedAssignee);
+          } else {
+            setAssigneeFilter('all');
+            setTempAssigneeFilter('all');
+          }
           setCurrentRedmineUserId(null);
-
         }
 
         if (projectsRes?.data?.projects) {
@@ -405,21 +449,33 @@ export default function RedmineTicketsPage() {
     setTrackerFilter(tempTrackerFilter);
     setVersionFilter(tempVersionFilter);
     setHiddenColumns(tempHiddenColumns);
+
+    // Save to localStorage
+    localStorage.setItem('redmine_projectFilter', tempProjectFilter);
+    localStorage.setItem('redmine_assigneeFilter', tempAssigneeFilter);
+    localStorage.setItem('redmine_trackerFilter', tempTrackerFilter);
+    localStorage.setItem('redmine_versionFilter', tempVersionFilter);
+    localStorage.setItem('redmine_hiddenColumns', JSON.stringify(tempHiddenColumns));
+
     addNotification({
       type: 'success',
       title: 'Filters Applied',
       message: 'Board filters have been updated',
       duration: 2000,
     });
+
+    // Close sidebar after applying
+    setSidebarOpen(false);
   };
 
   // Clear all filters
   const clearFilters = () => {
+    const defaultHidden = [STATUS_IDS.CLOSED, STATUS_IDS.DROPPED, STATUS_IDS.ON_HOLD];
     setTempProjectFilter('all');
     setTempAssigneeFilter('all');
     setTempTrackerFilter('all');
     setTempVersionFilter('all');
-    setTempHiddenColumns([STATUS_IDS.CLOSED, STATUS_IDS.DROPPED, STATUS_IDS.ON_HOLD]);
+    setTempHiddenColumns(defaultHidden);
   };
 
   const toggleColumnVisibility = (columnId: number) => {
@@ -717,8 +773,7 @@ export default function RedmineTicketsPage() {
                               cardStyleClass += 'border-l-slate-400 bg-white';
                             }
 
-                            // Extract Story Points (Business Value)
-                            const storyPoints = issue.custom_fields?.find(f => f.name === 'Business Value' || f.name === 'Story Points')?.value;
+
 
 
 
@@ -782,12 +837,7 @@ export default function RedmineTicketsPage() {
                                         </span>
                                         <span className="text-xs font-mono text-gray-500 group-hover:text-blue-600 transition-colors">#{issue.id}</span>
                                       </div>
-                                      {/* Story Points Badge */}
-                                      {storyPoints && (
-                                        <div className="flex items-center justify-center w-6 h-6 bg-slate-100 text-slate-600 text-xs font-bold rounded-full border border-slate-200" title="Story Points">
-                                          {storyPoints}
-                                        </div>
-                                      )}
+
                                     </div>
 
                                     {/* Parent Issue (if subtask) */}
@@ -940,7 +990,7 @@ export default function RedmineTicketsPage() {
               {/* Description */}
               <div>
                 <h3 className="text-sm font-semibold text-slate-300 mb-2">Description</h3>
-                <p className="text-slate-200 text-sm bg-slate-700/30 p-3 rounded border border-slate-600 whitespace-pre-wrap">
+                <p className="text-slate-200 text-sm bg-slate-700/30 p-3 rounded border border-slate-600 whitespace-pre-wrap break-words">
                   {selectedIssue.description || 'No description provided'}
                 </p>
               </div>
