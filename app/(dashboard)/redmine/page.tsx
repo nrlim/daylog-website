@@ -1028,6 +1028,10 @@ export default function RedmineTicketsPage() {
                   onClick={() => {
                     setEditingIssue(selectedIssue);
                     setIsViewMode(false);
+                    // Clear GitLab verification state
+                    setFetchedCommit(null);
+                    setGitlabUrlNeedsVerification(false);
+                    setIsFetchingCommit(false);
                   }}
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-500 transition-colors"
                 >
@@ -1373,10 +1377,48 @@ export default function RedmineTicketsPage() {
                 e.preventDefault();
                 if (!editingIssue) return;
                 const formData = new FormData(e.currentTarget);
+
+                // ⚠️ VALIDATION: Check if GitLab URL needs verification
+                const gitlabRefEdit = formData.get('gitlab_ref_edit') as string;
+                if (gitlabRefEdit && gitlabUrlNeedsVerification) {
+                  addNotification({
+                    type: 'error',
+                    title: 'GitLab URL Not Verified',
+                    message: 'Please click the "Verify" button before saving changes.',
+                    duration: 5000,
+                  });
+                  // Highlight the fetch button
+                  const fetchButton = document.querySelector('#gitlab-fetch-button-edit');
+                  if (fetchButton) {
+                    fetchButton.classList.add('animate-pulse');
+                    setTimeout(() => fetchButton.classList.remove('animate-pulse'), 3000);
+                  }
+                  return;
+                }
+
                 try {
+                  let description = formData.get('description') as string;
+
+                  // 🔄 If we have a new verified commit, update the description
+                  if (fetchedCommit) {
+                    const newCommitBlock = `\n\n---\n**GitLab Commit:** [${fetchedCommit.short_id}](${fetchedCommit.web_url})\n**Author:** ${fetchedCommit.author_name}\n**Message:** ${fetchedCommit.message}`;
+
+                    // Regex to find existing GitLab block (starts with \n\n---\n**GitLab Commit:**)
+                    // We match until the end of string or next potential separator if we had one (but we put it at end)
+                    const gitlabBlockRegex = /\n\n---\n\*\*GitLab Commit:\*\*[\s\S]*$/;
+
+                    if (gitlabBlockRegex.test(description)) {
+                      // Replace existing
+                      description = description.replace(gitlabBlockRegex, newCommitBlock);
+                    } else {
+                      // Append new
+                      description += newCommitBlock;
+                    }
+                  }
+
                   await api.put(`/redmine/issues/${editingIssue.id}`, {
                     subject: formData.get('subject'),
-                    description: formData.get('description'),
+                    description: description,
                     priority_id: formData.get('priority_id'),
                     assigned_to_id: formData.get('assigned_to_id') || null,
                   });
@@ -1388,6 +1430,10 @@ export default function RedmineTicketsPage() {
                   });
                   setEditingIssue(null);
                   setSelectedIssue(null);
+                  // Clear GitLab verification state
+                  setFetchedCommit(null);
+                  setGitlabUrlNeedsVerification(false);
+                  setIsFetchingCommit(false);
                   // Refresh issues
                   window.location.reload();
                 } catch (error: any) {
@@ -1416,6 +1462,65 @@ export default function RedmineTicketsPage() {
                     defaultValue={editingIssue?.description}
                     className="w-full px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
+                </div>
+
+                {/* GitLab Commit / Link (Edit Mode) */}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-300 mb-2">
+                    Update GitLab Commit <span className="text-slate-500 font-normal">(Optional)</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      name="gitlab_ref_edit"
+                      id="gitlab_ref_input_edit"
+                      className="flex-1 px-3 py-2 bg-slate-700 text-white border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Paste new URL to replace/add commit..."
+                      onChange={(e) => {
+                        if (fetchedCommit) setFetchedCommit(null);
+                        if (e.target.value.trim()) {
+                          setGitlabUrlNeedsVerification(true);
+                        } else {
+                          setGitlabUrlNeedsVerification(false);
+                        }
+                      }}
+                    />
+                    <button
+                      id="gitlab-fetch-button-edit"
+                      type="button"
+                      disabled={isFetchingCommit}
+                      onClick={async () => {
+                        const input = (document.getElementById('gitlab_ref_input_edit') as HTMLInputElement).value;
+                        if (!input) return;
+
+                        setIsFetchingCommit(true);
+                        try {
+                          const res = await api.get(`/gitlab/commit?sha=${encodeURIComponent(input)}`);
+                          if (res.data) {
+                            setFetchedCommit(res.data);
+                            setGitlabUrlNeedsVerification(false);
+                            addNotification({ type: 'success', title: 'Commit Verified ✅', message: 'New commit details loaded. Save to update.', duration: 2000 });
+                          }
+                        } catch (err: any) {
+                          addNotification({ type: 'error', title: 'Fetch Failed', message: err.response?.data?.error || 'Could not find commit', duration: 3000 });
+                        } finally {
+                          setIsFetchingCommit(false);
+                        }
+                      }}
+                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 text-sm font-semibold disabled:opacity-50"
+                    >
+                      {isFetchingCommit ? '...' : 'Verify'}
+                    </button>
+                  </div>
+                  {fetchedCommit && (
+                    <div className="mt-2 bg-green-900/20 border border-green-500/30 rounded p-2 text-xs text-green-100 flex flex-col gap-1">
+                      <div className="font-bold">✅ Verified New Commit: {fetchedCommit.short_id}</div>
+                      <div className="truncate opacity-80">{fetchedCommit.title}</div>
+                      <div className="text-[10px] text-green-300 font-semibold mt-1">
+                        Will replace existing commit info upon saving.
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -1457,6 +1562,10 @@ export default function RedmineTicketsPage() {
                     onClick={() => {
                       setEditingIssue(null);
                       setIsViewMode(true);
+                      // Clear GitLab verification state
+                      setFetchedCommit(null);
+                      setGitlabUrlNeedsVerification(false);
+                      setIsFetchingCommit(false);
                     }}
                     className="flex-1 px-4 py-2 bg-slate-700 text-white rounded-lg font-semibold hover:bg-slate-600 transition-colors"
                   >
