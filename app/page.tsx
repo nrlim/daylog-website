@@ -156,7 +156,7 @@ export default function HomePage() {
               <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Top Performers</span>
             </div>
             <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-2">
-              This Month's Winners
+              This Month&apos;s Winners
             </h2>
             <p className="text-base text-gray-600 max-w-2xl mx-auto">
               Recognizing excellence and outstanding contributions
@@ -256,7 +256,7 @@ export default function HomePage() {
                 </svg>
               </div>
               <p className="text-gray-900 text-lg font-bold mb-1">No Winners Yet</p>
-              <p className="text-gray-500 text-sm">Check back soon to see this month's top performers</p>
+              <p className="text-gray-500 text-sm">Check back soon to see this month&apos;s top performers</p>
             </div>
           )}
         </div>

@@ -419,7 +419,7 @@ export default function ActivitiesPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black text-gray-900 tracking-tight">Activities</h1>
-            <p className="text-gray-500 mt-1 font-medium">Track and manage your team's daily progress</p>
+            <p className="text-gray-500 mt-1 font-medium">Track and manage your team&apos;s daily progress</p>
           </div>
           <Link
             href="/activities/create"
@@ -659,8 +659,8 @@ export default function ActivitiesPage() {
                         key={page}
                         onClick={() => setCurrentPage(page)}
                         className={`w-9 h-9 rounded-xl text-sm font-bold transition-all ${currentPage === page
-                            ? 'bg-gray-900 text-white shadow-lg'
-                            : 'text-gray-500 hover:bg-gray-50'
+                          ? 'bg-gray-900 text-white shadow-lg'
+                          : 'text-gray-500 hover:bg-gray-50'
                           }`}
                       >
                         {page}

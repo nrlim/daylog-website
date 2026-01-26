@@ -236,8 +236,8 @@ export default function UserDetailPage() {
                     onClick={() => handleSetTopPerformer(rank)}
                     disabled={settingTopPerformer === rank}
                     className={`group relative p-6 rounded-2xl border transition-all duration-300 ${rank === 1 ? 'border-amber-200 bg-amber-50/50 hover:bg-amber-50 hover:border-amber-300' :
-                        rank === 2 ? 'border-slate-200 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300' :
-                          'border-orange-200 bg-orange-50/50 hover:bg-orange-50 hover:border-orange-300'
+                      rank === 2 ? 'border-slate-200 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300' :
+                        'border-orange-200 bg-orange-50/50 hover:bg-orange-50 hover:border-orange-300'
                       }`}
                   >
                     {isCurrent && (
@@ -310,8 +310,8 @@ export default function UserDetailPage() {
                           </p>
                         </div>
                         <span className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wide ${activity.status === 'Done' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
-                            activity.status === 'InProgress' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
-                              'bg-rose-50 text-rose-700 border border-rose-100'
+                          activity.status === 'InProgress' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                            'bg-rose-50 text-rose-700 border border-rose-100'
                           }`}>
                           {activity.status}
                         </span>
@@ -323,7 +323,7 @@ export default function UserDetailPage() {
                 <div className="p-12 text-center">
                   <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">💤</div>
                   <p className="text-gray-900 font-medium">No recent activity</p>
-                  <p className="text-sm text-gray-500 mt-1">This user hasn't logged any tasks yet.</p>
+                  <p className="text-sm text-gray-500 mt-1">This user hasn&apos;t logged any tasks yet.</p>
                 </div>
               )}
             </div>

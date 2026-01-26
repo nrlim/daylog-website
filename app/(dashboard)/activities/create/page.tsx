@@ -253,6 +253,19 @@ export default function CreateActivityPage() {
     }
   };
 
+  // Check if submit should be disabled
+  const isSubmitDisabled = Boolean(
+    loading || (
+      formData.isWfh &&
+      wfhUsage &&
+      !hasWfhOnDate &&
+      (
+        (wfhUsage.team && wfhUsage.team.remaining <= 0 && formData.quotaType === 'team') ||
+        (wfhUsage.personal && wfhUsage.personal.remaining <= 0 && formData.quotaType === 'personal')
+      )
+    )
+  );
+
   return (
     <div className="h-screen bg-gray-50/50 p-4 md:p-6 lg:p-8 font-sans overflow-hidden flex items-center justify-center">
       <div className="w-full max-w-6xl h-full max-h-[90vh] bg-white shadow-2xl rounded-2xl border border-gray-100 flex overflow-hidden">
@@ -492,7 +505,7 @@ export default function CreateActivityPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || (formData.isWfh && wfhUsage && !hasWfhOnDate && ((wfhUsage.team && wfhUsage.team.remaining <= 0 && formData.quotaType === 'team') || (wfhUsage.personal && wfhUsage.personal.remaining <= 0 && formData.quotaType === 'personal')))}
+                  disabled={isSubmitDisabled}
                   className="px-8 py-3 bg-gray-900 hover:bg-black text-white rounded-xl font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center gap-2 disabled:opacity-50 disabled:transform-none"
                 >
                   {loading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
@@ -545,7 +558,7 @@ export default function CreateActivityPage() {
                 <div>
                   <h4 className="text-gray-900 font-bold mb-1">Monthly WFH Allowance</h4>
                   <p className="text-sm text-gray-500">
-                    You've used <span className="font-semibold text-gray-900">{wfhUsage?.used ?? 0}</span> of your <span className="font-semibold text-gray-900">{wfhUsage?.limit ?? 0}</span> available days.
+                    You&apos;ve used <span className="font-semibold text-gray-900">{wfhUsage?.used ?? 0}</span> of your <span className="font-semibold text-gray-900">{wfhUsage?.limit ?? 0}</span> available days.
                   </p>
                 </div>
 

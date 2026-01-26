@@ -110,7 +110,7 @@ export default function CreateTeamPage() {
               <div>
                 <h4 className="font-bold text-blue-900 text-sm mb-1">Team Roles</h4>
                 <p className="text-sm text-blue-700/80 leading-relaxed">
-                  After creating the team, you'll be assigned as the <strong>Team Admin</strong>. You can then invite other members and assign leads.
+                  After creating the team, you&apos;ll be assigned as the <strong>Team Admin</strong>. You can then invite other members and assign leads.
                 </p>
               </div>
             </div>
