@@ -21,7 +21,11 @@ export default function DashboardPage() {
   const { addNotification } = useNotificationStore();
   const [userActivities, setUserActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
-  const [wfhUsage, setWfhUsage] = useState<{ used: number; limit: number; remaining: number } | null>(null);
+  const [wfhUsage, setWfhUsage] = useState<{
+    team?: { used: number; limit: number; remaining: number };
+    personal?: { total: number; used: number; remaining: number };
+    summary?: { totalUsed: number; totalAvailable: number };
+  } | null>(null);
   const [userTeams, setUserTeams] = useState<any[]>([]);
   const [topPerformers, setTopPerformers] = useState<TopPerformer[]>([]);
   const [loadingPerformers, setLoadingPerformers] = useState(true);
@@ -36,9 +40,21 @@ export default function DashboardPage() {
     try {
       setLoadingPerformers(true);
       const response = await api.get('/top-performers');
-      setTopPerformers(response.data || []);
+      // Handle variable API response structure
+      const data = response.data;
+      if (Array.isArray(data)) {
+        setTopPerformers(data);
+      } else if (data && Array.isArray(data.topPerformers)) {
+        setTopPerformers(data.topPerformers);
+      } else if (data && Array.isArray(data.data)) {
+        setTopPerformers(data.data);
+      } else {
+        console.warn('Unexpected top performers response format:', data);
+        setTopPerformers([]);
+      }
     } catch (error) {
       console.error('Failed to fetch top performers:', error);
+      setTopPerformers([]);
     } finally {
       setLoadingPerformers(false);
     }
@@ -58,11 +74,7 @@ export default function DashboardPage() {
         } catch (wfhError) {
           console.error('Failed to load WFH usage:', wfhError);
           // Set default values if fetch fails
-          setWfhUsage({ 
-            team: { used: 0, limit: 0, remaining: 0 },
-            personal: { used: 0, total: 0, remaining: 0 },
-            summary: { totalUsed: 0, totalAvailable: 0 },
-          } as any);
+          setWfhUsage(null);
         }
       }
     } catch (error) {
@@ -149,277 +161,266 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-8">
-      {/* Welcome Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg p-8 text-white flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-bold mb-2">Welcome back, {user?.username}! 👋</h1>
-          <p className="text-blue-100">Here&apos;s what&apos;s happening with your team today</p>
-        </div>
-        <Link
-          href="/activities"
-          className="bg-white/20 hover:bg-white/30 text-white px-6 py-3 rounded-lg transition-all duration-200 font-semibold border border-white/30 hover:border-white/50 flex items-center gap-2 whitespace-nowrap"
-        >
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M5.5 13a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.3A4.5 4.5 0 1113.5 13H11V9.413l1.293 1.293a1 1 0 001.414-1.414l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13H5.5z"></path>
-          </svg>
-          View Activities
-        </Link>
-      </div>
+    <div className="min-h-screen bg-gray-50/50 p-6 lg:p-10 font-sans">
+      <div className="max-w-7xl mx-auto space-y-10">
 
-      {/* Top Performers Section */}
-      {!loadingPerformers && topPerformers.length > 0 && (
-        <div className="bg-white rounded-xl shadow border border-gray-100 p-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">🌟 Top Performers This Month</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {topPerformers.map((performer) => (
-              <div
-                key={performer.id}
-                className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${getRankColor(performer.rank)} p-0.5`}
-              >
-                <div className="relative bg-slate-50 rounded-lg p-6 flex flex-col items-center justify-center h-full">
-                  {/* Profile Picture */}
-                  {performer.user.profilePicture ? (
-                    <div className="w-20 h-20 rounded-full overflow-hidden mb-3 border-2 border-gray-200">
-                      <img
-                        src={performer.user.profilePicture}
-                        alt={performer.user.username}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ) : (
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mb-3 border-2 border-gray-200">
-                      <span className="text-2xl font-bold text-white">{performer.user.username.charAt(0).toUpperCase()}</span>
-                    </div>
-                  )}
-                  
-                  <div className="text-4xl mb-2">{getMedalEmoji(performer.rank)}</div>
-                  
-                  <div className="text-center">
-                    <h4 className="text-lg font-bold text-gray-900 mb-1">
-                      {performer.user.username}
-                    </h4>
-                    <p className="text-gray-600 text-xs uppercase tracking-wider">
-                      {performer.rank === 1 && '⭐ Top Performer'}
-                      {performer.rank === 2 && '⭐ 2nd Place'}
-                      {performer.rank === 3 && '⭐ 3rd Place'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Quick Links Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {user?.role === 'admin' && (
-          <a
-            href="/teams"
-            className="group bg-white p-6 rounded-xl shadow hover:shadow-lg transition-all duration-200 border border-gray-100 hover:border-blue-300"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Teams</h2>
-              <div className="bg-blue-100 p-2 rounded-lg group-hover:bg-blue-200 transition-colors">
-                <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10.5 1.5H19.5V10.5H10.5z"></path>
-                  <path d="M4.5 5.5C3.12 5.5 2 6.62 2 8s1.12 2.5 2.5 2.5 2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5z"></path>
-                </svg>
-              </div>
-            </div>
-            <p className="text-sm text-gray-600 mb-4">Manage your teams and members</p>
-            <span className="text-blue-600 font-medium group-hover:translate-x-1 inline-block transition-transform">
-              View Teams →
-            </span>
-          </a>
-        )}
-
-        {user?.role === 'admin' && (
-          <a
-            href="/users"
-            className="group bg-white p-6 rounded-xl shadow hover:shadow-lg transition-all duration-200 border border-gray-100 hover:border-purple-300"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Users</h2>
-              <div className="bg-purple-100 p-2 rounded-lg group-hover:bg-purple-200 transition-colors">
-                <svg className="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM9 12a6 6 0 11-12 0 6 6 0 0112 0z"></path>
-                </svg>
-              </div>
-            </div>
-            <p className="text-sm text-gray-600 mb-4">Manage all users in the system</p>
-            <span className="text-purple-600 font-medium group-hover:translate-x-1 inline-block transition-transform">
-              View Users →
-            </span>
-          </a>
-        )}
-      </div>
-
-      {/* WFH Quota Status - Simple Display */}
-      <div className="bg-white rounded-xl shadow border border-gray-100 p-6">
-        <div className="flex items-center justify-between">
+        {/* Dashboard Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">WFH Monthly Quota</h3>
-            <p className="text-sm text-gray-600 mt-1">Track your work from home usage</p>
-          </div>
-          <div className="text-right">
-            {wfhUsage ? (
-              <>
-                <p className="text-4xl font-bold text-blue-600">
-                  {(wfhUsage as any).team?.remaining || 0}
-                </p>
-                <p className="text-sm text-gray-600">team days remaining</p>
-              </>
-            ) : (
-              <p className="text-sm text-gray-500">Loading...</p>
-            )}
-          </div>
-        </div>
-        {wfhUsage ? (
-          <div className="mt-6 space-y-6">
-            {/* Team Quota */}
-            <div>
-              <h4 className="text-sm font-semibold text-gray-700 mb-4">Team Quota</h4>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center">
-                  <p className="text-xs text-gray-600 mb-1">Used</p>
-                  <p className="text-xl font-bold text-gray-900">{(wfhUsage as any).team?.used || 0}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-xs text-gray-600 mb-1">Limit</p>
-                  <p className="text-xl font-bold text-gray-900">{(wfhUsage as any).team?.limit || 0}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-xs text-gray-600 mb-1">Usage</p>
-                  <p className="text-xl font-bold text-gray-900">
-                    {(wfhUsage as any).team?.limit 
-                      ? Math.round(((wfhUsage as any).team?.used / (wfhUsage as any).team?.limit) * 100) 
-                      : 0}%
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Personal Quota */}
-            {(wfhUsage as any).personal?.total > 0 && (
-              <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-4">Personal Quota</h4>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center">
-                    <p className="text-xs text-gray-600 mb-1">Used</p>
-                    <p className="text-xl font-bold text-gray-900">{(wfhUsage as any).personal?.used || 0}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xs text-gray-600 mb-1">Total</p>
-                    <p className="text-xl font-bold text-gray-900">{(wfhUsage as any).personal?.total || 0}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xs text-gray-600 mb-1">Usage</p>
-                    <p className="text-xl font-bold text-gray-900">
-                      {(wfhUsage as any).personal?.total 
-                        ? Math.round(((wfhUsage as any).personal?.used / (wfhUsage as any).personal?.total) * 100) 
-                        : 0}%
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="mt-6 text-center py-4">
-            <p className="text-sm text-gray-500">No WFH quota data available</p>
-          </div>
-        )}
-      </div>
-
-      {/* Activities Section */}
-      <div className="bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
-        <div className="px-6 py-6 border-b border-gray-100">
-          <h2 className="text-2xl font-bold text-gray-900">Your Recent Activities</h2>
-          <p className="text-sm text-gray-600 mt-1">Your latest activity logs this month</p>
-        </div>
-
-        {loading ? (
-          <div className="p-8 text-center">
-            <div className="w-8 h-8 mx-auto mb-3">
-              <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-200 border-t-blue-600"></div>
-            </div>
-            <p className="text-gray-600">Loading activities...</p>
-          </div>
-        ) : userActivities.filter(a => a.userId === user?.id).length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Time</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Description</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Type</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {userActivities
-                  .filter(a => a.userId === user?.id)
-                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                  .slice(0, 5)
-                  .map((activity) => (
-                  <tr key={activity.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <div className="text-gray-900 font-medium">
-                        {new Date(activity.date).toLocaleDateString('en-US', { 
-                          year: 'numeric', 
-                          month: 'short', 
-                          day: 'numeric' 
-                        })}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <div className="text-gray-600">{activity.time}</div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-700 max-w-xs truncate">{activity.description}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {activity.isWfh ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold border border-blue-300">
-                          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M10.5 1.5H19.5V10.5H10.5z"></path>
-                          </svg>
-                          WFH
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-semibold border border-gray-300">
-                          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"></path>
-                          </svg>
-                          Office
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(activity.status)}`}>
-                        {getStatusIcon(activity.status)}
-                        {activity.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="p-8 text-center">
-            <svg className="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            <p className="text-gray-500">No activities found</p>
-            <p className="text-sm text-gray-400 mt-1">
-              <Link href="/activities/create" className="text-blue-600 hover:text-blue-700 font-medium">
-                Create your first activity →
-              </Link>
+            <h1 className="text-3xl font-black text-gray-900 tracking-tight">
+              Dashboard
+            </h1>
+            <p className="text-gray-500 mt-1 font-medium">
+              Welcome back, <span className="text-gray-900 font-bold">{user?.username}</span>. Here is your daily overview.
             </p>
           </div>
-        )}
+          <div className="flex items-center gap-3">
+            <Link
+              href="/activities"
+              className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors shadow-sm"
+            >
+              View All Activities
+            </Link>
+            <Link
+              href="/activities/create"
+              className="px-6 py-2.5 bg-gray-900 text-white font-bold rounded-xl shadow-lg hover:bg-black hover:scale-105 transition-all flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Log Activity
+            </Link>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+          {/* Left Column: Stats & Quota */}
+          <div className="space-y-8 lg:col-span-2">
+
+            {/* WFH Quota Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Team Quota Card */}
+              <div className="bg-white p-6 rounded-2xl shadow-xl shadow-gray-100 border border-gray-100 relative overflow-hidden group hover:border-purple-200 transition-colors">
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <svg className="w-24 h-24 text-purple-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                </div>
+
+                <div className="relative z-10">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="p-2 bg-purple-50 rounded-lg text-purple-600">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                    </span>
+                    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Team Quota</h3>
+                  </div>
+
+                  {wfhUsage?.team ? (
+                    <div className="space-y-1">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-4xl font-extrabold text-gray-900">{wfhUsage.team.remaining}</span>
+                        <span className="text-sm font-medium text-gray-500">days left</span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-1.5 mt-3 overflow-hidden">
+                        <div
+                          className="bg-purple-500 h-1.5 rounded-full transition-all duration-1000"
+                          style={{ width: `${Math.min(((wfhUsage.team.used) / (wfhUsage.team.limit || 1)) * 100, 100)}%` }}
+                        ></div>
+                      </div>
+                      <div className="flex justify-between text-xs font-medium text-gray-400 mt-2">
+                        <span>Used: {wfhUsage.team.used}</span>
+                        <span>Limit: {wfhUsage.team.limit}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="h-16 flex items-center text-gray-400 text-sm">Loading usage data...</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Personal Quota Card */}
+              <div className="bg-white p-6 rounded-2xl shadow-xl shadow-gray-100 border border-gray-100 relative overflow-hidden group hover:border-blue-200 transition-colors">
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <svg className="w-24 h-24 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
+                </div>
+
+                <div className="relative z-10">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="p-2 bg-blue-50 rounded-lg text-blue-600">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                    </span>
+                    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Personal Quota</h3>
+                  </div>
+
+                  {wfhUsage?.personal ? (
+                    <div className="space-y-1">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-4xl font-extrabold text-gray-900">{wfhUsage.personal.remaining}</span>
+                        <span className="text-sm font-medium text-gray-500">days left</span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-1.5 mt-3 overflow-hidden">
+                        <div
+                          className="bg-blue-500 h-1.5 rounded-full transition-all duration-1000"
+                          style={{ width: `${Math.min(((wfhUsage.personal.used) / (wfhUsage.personal.total || 1)) * 100, 100)}%` }}
+                        ></div>
+                      </div>
+                      <div className="flex justify-between text-xs font-medium text-gray-400 mt-2">
+                        <span>Used: {wfhUsage.personal.used}</span>
+                        <span>Total: {wfhUsage.personal.total}</span>
+                      </div>
+                    </div>
+                  ) : (wfhUsage?.summary ? (
+                    // Fallback for old data structure if needed, or just show 0
+                    <div className="h-16 flex items-center text-gray-400 text-sm">No personal quota</div>
+                  ) : (
+                    <div className="h-16 flex items-center text-gray-400 text-sm">Loading usage data...</div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions for Admin (using new style) */}
+            {user?.role === 'admin' && (
+              <div className="grid grid-cols-2 gap-6">
+                <Link href="/teams" className="bg-white p-5 rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all flex items-center gap-4 group">
+                  <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                  </div>
+                  <div>
+                    <div className="font-bold text-gray-900">Manage Teams</div>
+                    <div className="text-xs text-gray-500">View and edit team structures</div>
+                  </div>
+                </Link>
+                <Link href="/users" className="bg-white p-5 rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all flex items-center gap-4 group">
+                  <div className="w-10 h-10 rounded-full bg-pink-50 flex items-center justify-center text-pink-600 group-hover:scale-110 transition-transform">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                  </div>
+                  <div>
+                    <div className="font-bold text-gray-900">Manage Users</div>
+                    <div className="text-xs text-gray-500">Add or remove system users</div>
+                  </div>
+                </Link>
+              </div>
+            )}
+
+            {/* Recent Activity Table */}
+            <div className="bg-white rounded-2xl shadow-xl shadow-gray-100 border border-gray-100 overflow-hidden">
+              <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+                <h3 className="font-bold text-gray-900 text-lg">Your Recent Activity</h3>
+                {loading && <div className="text-xs text-gray-400 font-medium">Updating...</div>}
+              </div>
+
+              {userActivities.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50/50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Date</th>
+                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Project</th>
+                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Task</th>
+                        <th className="px-6 py-3 text-right text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {userActivities
+                        .filter(a => a.userId === user?.id)
+                        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                        .slice(0, 5)
+                        .map((activity) => (
+                          <tr key={activity.id} className="hover:bg-gray-50/50 transition-colors group">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex flex-col">
+                                <span className="text-sm font-bold text-gray-900">
+                                  {new Date(activity.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                </span>
+                                <span className="text-xs text-gray-500">{activity.time}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center gap-2">
+                                <span className={`w-2 h-2 rounded-full ${activity.project === 'Others' ? 'bg-gray-400' : 'bg-indigo-500'}`}></span>
+                                <span className="text-sm font-semibold text-gray-700">{activity.project === 'Others' ? 'Custom' : activity.project}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-sm text-gray-900 font-medium truncate max-w-[200px]">{activity.subject}</div>
+                              <div className="text-xs text-gray-500 truncate max-w-[200px]">{activity.description}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right">
+                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${activity.status === 'Done' ? 'bg-green-100 text-green-700' :
+                                activity.status === 'InProgress' ? 'bg-blue-100 text-blue-700' :
+                                  'bg-red-100 text-red-700'
+                                }`}>
+                                {activity.status === 'Done' ? 'Completed' : activity.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="p-10 text-center text-gray-400">
+                  <p>No recent activity found. Start by logging your work!</p>
+                </div>
+              )}
+            </div>
+
+          </div>
+
+          {/* Right Column: Top Performers */}
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-2xl shadow-xl shadow-gray-100 border border-gray-100 h-full">
+              <h3 className="font-bold text-gray-900 text-lg mb-6 flex items-center gap-2">
+                <span className="text-yellow-500">🏆</span> top performers
+              </h3>
+
+              {loadingPerformers ? (
+                <div className="space-y-4 animate-pulse">
+                  {[1, 2, 3].map(i => <div key={i} className="h-16 bg-gray-100 rounded-xl"></div>)}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {topPerformers.map((performer, index) => (
+                    <div key={performer.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100">
+                      <div className={`
+                             w-8 h-8 flex items-center justify-center rounded-full font-black text-sm
+                             ${index === 0 ? 'bg-yellow-100 text-yellow-700' :
+                          index === 1 ? 'bg-gray-100 text-gray-700' :
+                            index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-gray-50 text-gray-400'}
+                          `}>
+                        {index + 1}
+                      </div>
+
+                      {performer.user.profilePicture ? (
+                        <img src={performer.user.profilePicture} alt="" className="w-10 h-10 rounded-full object-cover shadow-sm" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 border border-gray-300 flex items-center justify-center text-gray-600 font-bold text-sm">
+                          {performer.user.username.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-gray-900 truncate">
+                          {performer.user.username}
+                          {user?.id === performer.userId && <span className="ml-2 text-[10px] bg-gray-900 text-white px-1.5 py-0.5 rounded">YOU</span>}
+                        </div>
+                        <div className="text-xs text-gray-500 font-medium">Rank {performer.rank}</div>
+                      </div>
+
+                      {index === 0 && <span className="text-lg">🥇</span>}
+                    </div>
+                  ))}
+
+                  {topPerformers.length === 0 && (
+                    <div className="text-center text-gray-400 py-10 text-sm">
+                      Not enough data yet.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

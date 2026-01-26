@@ -62,17 +62,17 @@ export default function MyRewards() {
       }
 
       const data = await response.json();
-      
+
       // Update the redemption in local state
       setRedemptions((prev) =>
         prev.map((r) =>
           r.id === redemptionId
             ? {
-                ...r,
-                status: 'completed',
-                isActivated: true,
-                activatedAt: new Date().toISOString(),
-              }
+              ...r,
+              status: 'completed',
+              isActivated: true,
+              activatedAt: new Date().toISOString(),
+            }
             : r
         )
       );
@@ -98,41 +98,26 @@ export default function MyRewards() {
     return new Date(expiresAt) < new Date();
   };
 
-  const getExpirationText = (expiresAt?: string, createdAt?: string) => {
+  const getExpirationText = (expiresAt?: string) => {
     if (!expiresAt) return null;
-    
+
     const expDate = new Date(expiresAt);
     const now = new Date();
     const isExpired = expDate < now;
-    
-    if (isExpired) {
-      return { text: 'Expired', className: 'text-red-600' };
-    }
-    
-    const daysLeft = Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (daysLeft <= 1) {
-      return { text: 'Expires today', className: 'text-red-500 font-semibold' };
-    } else if (daysLeft <= 7) {
-      return { text: `Expires in ${daysLeft} days`, className: 'text-orange-500' };
-    } else {
-      return { text: `Expires in ${daysLeft} days`, className: 'text-gray-500' };
-    }
-  };
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { bg: string; text: string; icon: string }> = {
-      pending: { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: '⏳' },
-      approved: { bg: 'bg-blue-100', text: 'text-blue-700', icon: '✓' },
-      rejected: { bg: 'bg-red-100', text: 'text-red-700', icon: '✗' },
-      completed: { bg: 'bg-green-100', text: 'text-green-700', icon: '✓✓' },
-    };
-    const config = statusConfig[status] || statusConfig.pending;
-    return (
-      <span className={`text-xs px-3 py-1 rounded-full font-semibold ${config.bg} ${config.text}`}>
-        {config.icon} {status.charAt(0).toUpperCase() + status.slice(1)}
-      </span>
-    );
+    if (isExpired) {
+      return { text: 'Expired', color: 'red' };
+    }
+
+    const daysLeft = Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysLeft <= 1) {
+      return { text: 'Expires today', color: 'red' };
+    } else if (daysLeft <= 7) {
+      return { text: `Expires in ${daysLeft} days`, color: 'orange' };
+    } else {
+      return { text: `Expires in ${daysLeft} days`, color: 'gray' };
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -140,111 +125,126 @@ export default function MyRewards() {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
     });
+  };
+
+  const getStatusConfig = (status: string) => {
+    switch (status) {
+      case 'approved': return { bg: 'bg-green-100', text: 'text-green-700', label: 'Approved' };
+      case 'rejected': return { bg: 'bg-red-100', text: 'text-red-700', label: 'Rejected' };
+      case 'completed': return { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Activated' };
+      default: return { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Pending' };
+    }
   };
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-16">
-        <div className="animate-spin rounded-full h-12 w-12 border-2 border-purple-300 border-t-purple-600 mb-4"></div>
-        <p className="text-gray-600 text-sm">Loading your rewards...</p>
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="w-12 h-12 border-4 border-gray-100 border-t-purple-600 rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-500 font-bold">Loading your rewards...</p>
       </div>
     );
   }
 
   if (redemptions.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 px-4">
-        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center mb-4">
-          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      <div className="bg-white rounded-3xl border-2 border-dashed border-gray-200 p-16 text-center">
+        <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
+          <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
           </svg>
         </div>
-        <p className="text-gray-600 font-medium text-center">No rewards redeemed yet</p>
-        <p className="text-gray-500 text-sm text-center mt-2">Start browsing and redeeming rewards from the Browse Rewards tab!</p>
+        <h3 className="text-xl font-bold text-gray-900 mb-2">No rewards redeemed yet</h3>
+        <p className="text-gray-500">Go to Browse Rewards to redeem your first item!</p>
       </div>
     );
   }
 
   return (
-    <div className="w-full">
-      {/* Header */}
-      <div className="mb-4">
-        <h3 className="text-lg font-bold text-gray-900">My Redeemed Rewards</h3>
-        <p className="text-xs text-gray-600 mt-0.5">Total: <span className="font-bold text-purple-600">{redemptions.length}</span> reward{redemptions.length !== 1 ? 's' : ''}</p>
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-lg font-bold text-gray-900">My Collection</h3>
+        <span className="bg-purple-100 text-purple-700 font-bold px-3 py-1 rounded-full text-xs">
+          {redemptions.length} Items
+        </span>
       </div>
 
-      {/* Rewards List - Simple and Clean */}
-      <div className="space-y-2">
-        {redemptions.map((item) => (
-          <div
-            key={item.id}
-            className="flex items-center gap-3 bg-white rounded-lg border border-gray-200 p-3 hover:shadow-md hover:border-purple-300 transition-all duration-300"
-          >
-            {/* Icon */}
-            <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
-              <svg className="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z"></path>
-              </svg>
-            </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {redemptions.map((item) => {
+          const status = getStatusConfig(item.status);
+          const expInfo = getExpirationText(item.expiresAt || item.reward.expiresAt);
+          const isExpired = isRewardExpired(item.expiresAt || item.reward.expiresAt);
 
-            {/* Content */}
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-semibold text-gray-900 leading-tight line-clamp-1">{item.reward.name}</h3>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded font-semibold">{item.reward.pointsCost} pts</span>
-                {item.status === 'pending' && (
-                  <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded font-semibold">Pending</span>
-                )}
-                {item.status === 'approved' && (
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-semibold">Ready to Use</span>
-                )}
-                {item.status === 'rejected' && (
-                  <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-semibold">Rejected</span>
-                )}
-                {item.status === 'completed' && (
-                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded font-semibold">Activated</span>
-                )}
-                {isRewardExpired(item.expiresAt || item.reward.expiresAt) && (
-                  <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-semibold">EXPIRED</span>
-                )}
+          return (
+            <div
+              key={item.id}
+              className="group bg-white rounded-3xl shadow-lg shadow-gray-100 border border-gray-100 overflow-hidden hover:-translate-y-1 transition-all duration-300 flex flex-col"
+            >
+              {/* Card Header with Status */}
+              <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+                <span className={`text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-md ${status.bg} ${status.text}`}>
+                  {status.label}
+                </span>
+                <span className="text-xs font-bold text-gray-400">
+                  {formatDate(item.createdAt)}
+                </span>
               </div>
-              {getExpirationText(item.expiresAt || item.reward.expiresAt) && (
-                <p className={`text-xs mt-1 ${getExpirationText(item.expiresAt || item.reward.expiresAt)?.className}`}>
-                  {getExpirationText(item.expiresAt || item.reward.expiresAt)?.text}
-                </p>
-              )}
-            </div>
 
-            {/* Action - Date or Activate Button */}
-            <div className="flex-shrink-0 flex flex-col items-end gap-2">
-              <p className="text-xs text-gray-500 whitespace-nowrap">{formatDate(item.createdAt)}</p>
-              
-              {/* Show activate button only for approved rewards that are not expired */}
-              {item.status === 'approved' && !isRewardExpired(item.expiresAt || item.reward.expiresAt) && !item.isActivated && (
-                <button
-                  onClick={() => handleActivateReward(item.id)}
-                  disabled={activatingId === item.id}
-                  className="text-xs px-3 py-1 rounded bg-purple-100 text-purple-700 hover:bg-purple-200 disabled:opacity-50 disabled:cursor-not-allowed font-semibold transition-colors"
-                >
-                  {activatingId === item.id ? 'Using...' : 'Use Now'}
-                </button>
-              )}
-              
-              {/* Disable button if expired */}
-              {isRewardExpired(item.expiresAt || item.reward.expiresAt) && (
-                <button
-                  disabled
-                  className="text-xs px-3 py-1 rounded bg-gray-100 text-gray-400 cursor-not-allowed font-semibold"
-                >
-                  Expired
-                </button>
-              )}
+              {/* Content */}
+              <div className="p-6 flex-1 flex flex-col">
+                <div className="flex-1">
+                  <h3 className="text-lg font-black text-gray-900 leading-tight mb-2 group-hover:text-purple-600 transition-colors">
+                    {item.reward.name}
+                  </h3>
+
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-sm font-bold text-gray-500">{item.reward.pointsCost} pts</span>
+                  </div>
+
+                  {expInfo && (
+                    <p className={`text-xs font-bold flex items-center gap-1 ${isExpired ? 'text-red-500' :
+                        expInfo.color === 'orange' ? 'text-orange-500' : 'text-gray-400'
+                      }`}>
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      {expInfo.text}
+                    </p>
+                  )}
+                </div>
+
+                {/* Action */}
+                <div className="mt-6 pt-4 border-t border-gray-100">
+                  {item.status === 'approved' && !isExpired && !item.isActivated ? (
+                    <button
+                      onClick={() => handleActivateReward(item.id)}
+                      disabled={activatingId === item.id}
+                      className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold text-sm shadow-md shadow-purple-200 transition-all flex items-center justify-center gap-2"
+                    >
+                      {activatingId === item.id ? (
+                        <>
+                          <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Activating...
+                        </>
+                      ) : 'Use Now'}
+                    </button>
+                  ) : item.status === 'completed' || item.isActivated ? (
+                    <div className="w-full py-2.5 bg-green-50 text-green-700 border border-green-100 rounded-xl font-bold text-sm text-center flex items-center justify-center gap-2">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                      Redeemed
+                    </div>
+                  ) : isExpired ? (
+                    <div className="w-full py-2.5 bg-gray-100 text-gray-400 rounded-xl font-bold text-sm text-center">
+                      Expired
+                    </div>
+                  ) : (
+                    <div className="w-full py-2.5 bg-yellow-50 text-yellow-700 border border-yellow-100 rounded-xl font-bold text-sm text-center">
+                      Waiting Approval
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

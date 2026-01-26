@@ -48,10 +48,12 @@ export default function CreateActivityPage() {
     description: '',
     status: 'InProgress',
     isWfh: true,
+    quotaType: 'team', // 'team' or 'personal'
     teamId: '',
     project: '',
     projectOther: '',
   });
+
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [wfhUsage, setWfhUsage] = useState<{ team?: { used: number; limit: number; remaining: number }; personal?: { total: number; used: number; remaining: number }; summary?: { totalUsed: number; totalAvailable: number }; used?: number; limit?: number; remaining?: number } | null>(null);
@@ -252,478 +254,309 @@ export default function CreateActivityPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 py-8 px-4">
-      <div className="max-w-2xl mx-auto">
-        {/* Error Alert */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-            <svg className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-            </svg>
+    <div className="h-screen bg-gray-50/50 p-4 md:p-6 lg:p-8 font-sans overflow-hidden flex items-center justify-center">
+      <div className="w-full max-w-6xl h-full max-h-[90vh] bg-white shadow-2xl rounded-2xl border border-gray-100 flex overflow-hidden">
+
+        {/* Left Column: Context Sidebar */}
+        <div className="w-1/3 min-w-[320px] bg-gray-50/80 border-r border-gray-100 flex flex-col h-full">
+          {/* Sidebar Header */}
+          <div className="p-6 border-b border-gray-100 flex items-center gap-3">
+            <button
+              onClick={() => router.back()}
+              className="p-2 -ml-2 rounded-lg hover:bg-white hover:shadow-sm text-gray-500 transition-all"
+              title="Back to Activities"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+            </button>
             <div>
-              <h3 className="font-semibold text-red-900">Error</h3>
-              <p className="text-red-700 text-sm mt-1">{error}</p>
+              <h2 className="text-lg font-bold text-gray-900 leading-tight">New Activity</h2>
+              <div className="flex items-center gap-2 text-xs text-gray-500 font-medium">
+                {jakartaDateTime.time} • Jakarta
+              </div>
             </div>
           </div>
-        )}
 
-        {/* Form Card */}
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl border border-gray-200 p-10 space-y-8">
-          {/* Info Button - Top Right */}
-          <div className="flex justify-end -mt-2 -mr-2">
-            <button
-              type="button"
-              onClick={() => setShowInfoPanel(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors text-blue-600 hover:text-blue-700 font-medium"
-              title="View WFH & Quota Information"
-            >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
-              <span className="text-sm">info</span>
-            </button>
-          </div>
+          {/* Sidebar Scrollable Content */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
 
-          {/* User and Team Info - Compact Card */}
-          {!teamsLoading && (
-            <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center flex-shrink-0">
-                    <span className="text-white font-bold text-sm">{user?.username?.charAt(0).toUpperCase()}</span>
+            {/* Team Selection */}
+            {userTeams.length > 0 && (
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Team Space</label>
+                {userTeams.length === 1 ? (
+                  <div className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-600 text-sm font-semibold flex items-center justify-between shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                      {userTeams[0].name}
+                    </div>
+                    <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                   </div>
-                  <div>
-                    <p className="text-xs font-medium text-gray-600">Logged in as</p>
-                    <p className="text-base font-semibold text-gray-900">{user?.username}</p>
-                  </div>
-                </div>
-                {userTeams.length > 0 && (
-                  <div className="flex flex-wrap gap-2 justify-end max-w-xs">
-                    {userTeams.map((team) => (
-                      <span
-                        key={team.id}
-                        className="inline-flex px-3 py-1 bg-white text-purple-700 rounded-full text-xs font-semibold border border-purple-200 shadow-sm"
-                      >
-                        {team.name}
-                      </span>
-                    ))}
+                ) : (
+                  <div className="relative">
+                    <select
+                      value={formData.teamId}
+                      onChange={(e) => setFormData({ ...formData, teamId: e.target.value })}
+                      className="w-full appearance-none px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-700 text-sm font-semibold focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none shadow-sm transition-all"
+                    >
+                      <option value="">Select Team</option>
+                      {userTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                    <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-400">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </div>
                   </div>
                 )}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Team Selection */}
-          {userTeams.length > 0 && (
-            <div>
-              <label className="block text-sm font-semibold text-gray-900 mb-3">
-                Team <span className="text-red-600">*</span>
-              </label>
-              {userTeams.length === 1 ? (
-                <div className="w-full px-4 py-3 border border-purple-200 rounded-lg bg-purple-50 text-gray-700 font-medium flex items-center justify-between hover:border-purple-300 transition-colors">
-                  <span>{userTeams[0].name}</span>
-                  <span className="text-xs px-2.5 py-1 bg-purple-600 text-white rounded-full font-semibold">Auto</span>
-                </div>
-              ) : (
-                <select
-                  value={formData.teamId}
-                  onChange={(e) => setFormData({ ...formData, teamId: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white hover:border-gray-400"
-                  required
-                >
-                  <option value="">Select a team</option>
-                  {userTeams.map((team) => (
-                    <option key={team.id} value={team.id}>
-                      {team.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-          )}
-
-          {/* Project Selection */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-3">
-              Project <span className="text-red-600">*</span>
-            </label>
-            <select
-              value={formData.project}
-              onChange={(e) => setFormData({ ...formData, project: e.target.value, projectOther: '' })}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white hover:border-gray-400"
-              required
-            >
-              <option value="">Select a project</option>
-              <option value="MZA">MZA</option>
-              <option value="ZSMART">ZSMART</option>
-              <option value="CIRRUST">CIRRUST</option>
-              <option value="MANULIFE">MANULIFE</option>
-              <option value="MKM">MKM</option>
-              <option value="KANSAI">KANSAI</option>
-              <option value="BNIL">BNIL</option>
-              <option value="LIRIQ">LIRIQ</option>
-              <option value="SMART COURIER">SMART COURIER</option>
-              <option value="Others">Others</option>
-            </select>
-          </div>
-
-          {/* Project Others - Free Text Field */}
-          {formData.project === 'Others' && (
-            <div>
-              <label className="block text-sm font-semibold text-gray-900 mb-3">
-                Project Name <span className="text-red-600">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.projectOther}
-                onChange={(e) => setFormData({ ...formData, projectOther: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white hover:border-gray-400"
-                placeholder="Enter custom project name"
-                required
-              />
-            </div>
-          )}
-
-          {/* WFH Quota Display - Main Form */}
-          {formData.teamId && wfhUsage && (
-            <div>
-              {/* Team Quota */}
-              {wfhUsage.team && (
-                <div className={`rounded-lg p-5 border-2 mb-3 ${wfhUsage.team.remaining > 0 ? 'bg-blue-50 border-blue-300' : 'bg-red-50 border-red-300'}`}>
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className={`text-xs font-semibold uppercase tracking-wide ${wfhUsage.team.remaining > 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                        Team WFH Quota
-                      </p>
-                      <div className="flex items-baseline gap-2 mt-2">
-                        <p className={`text-3xl font-bold ${wfhUsage.team.remaining > 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                          {wfhUsage.team.remaining}
-                        </p>
-                        <p className={`text-sm font-medium ${wfhUsage.team.remaining > 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                          / {wfhUsage.team.limit} days
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex-1 flex flex-col items-end gap-2">
-                      <div className="w-full">
-                        <div className="w-full bg-gray-300 rounded-full h-2 overflow-hidden">
-                          <div
-                            className={`h-2 rounded-full transition-all ${wfhUsage.team.remaining > 0 ? 'bg-blue-500' : 'bg-red-500'}`}
-                            style={{ width: `${Math.min((wfhUsage.team.used / wfhUsage.team.limit) * 100, 100)}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                      <p className={`text-xs font-medium ${wfhUsage.team.remaining > 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                        {Math.round((wfhUsage.team.used / wfhUsage.team.limit) * 100)}% used
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Personal Quota */}
-              {wfhUsage.personal && (
-                <div className={`rounded-lg p-5 border-2 ${wfhUsage.personal.remaining > 0 ? 'bg-purple-50 border-purple-300' : 'bg-orange-50 border-orange-300'}`}>
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className={`text-xs font-semibold uppercase tracking-wide ${wfhUsage.personal.remaining > 0 ? 'text-purple-700' : 'text-orange-700'}`}>
-                        Personal WFH Quota (from rewards)
-                      </p>
-                      <div className="flex items-baseline gap-2 mt-2">
-                        <p className={`text-3xl font-bold ${wfhUsage.personal.remaining > 0 ? 'text-purple-600' : 'text-orange-600'}`}>
-                          {wfhUsage.personal.remaining}
-                        </p>
-                        <p className={`text-sm font-medium ${wfhUsage.personal.remaining > 0 ? 'text-purple-600' : 'text-orange-600'}`}>
-                          / {wfhUsage.personal.total} days
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex-1 flex flex-col items-end gap-2">
-                      <div className="w-full">
-                        <div className="w-full bg-gray-300 rounded-full h-2 overflow-hidden">
-                          <div
-                            className={`h-2 rounded-full transition-all ${wfhUsage.personal.remaining > 0 ? 'bg-purple-500' : 'bg-orange-500'}`}
-                            style={{ width: `${wfhUsage.personal.total > 0 ? Math.min((wfhUsage.personal.used / wfhUsage.personal.total) * 100, 100) : 0}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                      <p className={`text-xs font-medium ${wfhUsage.personal.remaining > 0 ? 'text-purple-700' : 'text-orange-700'}`}>
-                        {wfhUsage.personal.total > 0 ? Math.round((wfhUsage.personal.used / wfhUsage.personal.total) * 100) : 0}% used
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Fallback for old format */}
-              {wfhUsage.remaining !== undefined && !wfhUsage.team && (
-                <div className={`rounded-lg p-5 border-2 ${(wfhUsage.remaining ?? 0) > 0 ? 'bg-blue-50 border-blue-300' : 'bg-red-50 border-red-300'}`}>
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className={`text-xs font-semibold uppercase tracking-wide ${(wfhUsage.remaining ?? 0) > 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                        WFH Quota Remaining
-                      </p>
-                      <div className="flex items-baseline gap-2 mt-2">
-                        <p className={`text-4xl font-bold ${(wfhUsage.remaining ?? 0) > 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                          {wfhUsage.remaining ?? 0}
-                        </p>
-                        <p className={`text-sm font-medium ${(wfhUsage.remaining ?? 0) > 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                          / {wfhUsage.limit ?? 3} days
-                        </p>
-                      </div>
-                      <p className={`text-xs mt-2 ${(wfhUsage.remaining ?? 0) > 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                        {(wfhUsage.remaining ?? 0) > 0
-                          ? `You can log ${wfhUsage.remaining ?? 0} more WFH activities`
-                          : 'Limit reached - no more WFH activities allowed'}
-                      </p>
-                    </div>
-                    <div className="flex-1 flex flex-col items-end gap-2">
-                      <div className="w-full">
-                        <div className="w-full bg-gray-300 rounded-full h-3 overflow-hidden">
-                          <div
-                            className={`h-3 rounded-full transition-all ${(wfhUsage.remaining ?? 0) > 0 ? 'bg-blue-500' : 'bg-red-500'}`}
-                            style={{ width: `${Math.min(((wfhUsage.used ?? 0) / (wfhUsage.limit ?? 3)) * 100, 100)}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                      <p className={`text-xs font-medium ${(wfhUsage.remaining ?? 0) > 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                        {Math.round(((wfhUsage.used ?? 0) / (wfhUsage.limit ?? 3)) * 100)}% used ({wfhUsage.used ?? 0}/{wfhUsage.limit ?? 3})
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Date and Time Section */}
-          <div className="bg-blue-50 rounded-xl p-5 border border-blue-200">
-            <p className="text-sm font-semibold text-gray-900 mb-4">
-              When the activity actually happened?
-            </p>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">
-                  Date <span className="text-red-600">*</span>
+            {/* Quota Selection */}
+            {formData.teamId && wfhUsage && (wfhUsage.team || wfhUsage.personal) && (
+              <div className="space-y-2 animate-fade-in">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex justify-between items-center">
+                  Quota Source
+                  <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded ml-2">Required</span>
                 </label>
+                <div className="grid grid-cols-2 gap-3">
+                  {['team', 'personal'].map((type) => {
+                    const usage = type === 'team' ? wfhUsage.team : wfhUsage.personal;
+                    if (!usage) return null;
+                    const isActive = formData.quotaType === type;
+                    const isDisabled = usage.remaining <= 0;
+
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, quotaType: type })}
+                        disabled={isDisabled}
+                        className={`relative p-3 rounded-xl border-2 text-left transition-all duration-200 ${isActive
+                          ? 'border-purple-600 bg-purple-50/50 ring-1 ring-purple-600 shadow-sm transform scale-[1.02]'
+                          : 'border-gray-200 bg-white hover:border-gray-300'
+                          } ${isDisabled ? 'opacity-50 cursor-not-allowed grayscale' : ''}`}
+                      >
+                        <div className="flex justify-between items-start mb-1">
+                          <span className={`text-[10px] font-bold uppercase ${isActive ? 'text-purple-700' : 'text-gray-500'}`}>
+                            {type}
+                          </span>
+                          {isActive && <div className="w-1.5 h-1.5 rounded-full bg-purple-600"></div>}
+                        </div>
+                        <div className="text-lg font-bold text-gray-900 leading-none mb-0.5">
+                          {usage.remaining}
+                        </div>
+                        <div className="text-[10px] text-gray-500 font-medium">days left</div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Project Selection */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Project</label>
+              <div className="relative">
+                <select
+                  value={formData.project}
+                  onChange={(e) => setFormData({ ...formData, project: e.target.value, projectOther: '' })}
+                  className="w-full appearance-none px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-700 text-sm font-semibold focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none shadow-sm transition-all"
+                >
+                  <option value="">Select Project...</option>
+                  <option value="MZA">MZA</option>
+                  <option value="ZSMART">ZSMART</option>
+                  <option value="CIRRUST">CIRRUST</option>
+                  <option value="MANULIFE">MANULIFE</option>
+                  <option value="MKM">MKM</option>
+                  <option value="KANSAI">KANSAI</option>
+                  <option value="BNIL">BNIL</option>
+                  <option value="LIRIQ">LIRIQ</option>
+                  <option value="SMART COURIER">SMART COURIER</option>
+                  <option value="Others">Custom Project...</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-400">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                </div>
+              </div>
+
+              {formData.project === 'Others' && (
+                <input
+                  type="text"
+                  value={formData.projectOther}
+                  onChange={(e) => setFormData({ ...formData, projectOther: e.target.value })}
+                  className="w-full mt-2 px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-700 text-sm font-medium focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none shadow-sm animate-fade-in-down"
+                  placeholder="Enter Project Name"
+                  autoFocus
+                />
+              )}
+            </div>
+
+            {/* Date Time Compact */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Date</label>
                 <input
                   type="date"
                   value={formData.date}
                   onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white hover:border-gray-400"
-                  required
+                  className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-purple-500 outline-none shadow-sm"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">
-                  Time <span className="text-red-600">*</span>
-                </label>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Time</label>
                 <input
                   type="time"
                   value={formData.time}
                   onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white hover:border-gray-400"
+                  className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-purple-500 outline-none shadow-sm"
+                />
+              </div>
+            </div>
+
+          </div>
+
+          {/* Sidebar Footer */}
+          <div className="p-4 border-t border-gray-100 bg-gray-50">
+            <button
+              type="button"
+              onClick={() => setShowInfoPanel(true)}
+              className="w-full py-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl text-xs font-bold uppercase tracking-wide hover:bg-white hover:text-purple-600 hover:border-purple-200 shadow-sm transition-all flex items-center justify-center gap-2"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+              View Quota Details
+            </button>
+          </div>
+        </div>
+
+        {/* Right Column: Main Content */}
+        <div className="flex-1 flex flex-col h-full relative">
+          {/* Top Actions / User */}
+          <div className="absolute top-6 right-6 flex items-center gap-3 z-10">
+            <div className="text-right hidden sm:block">
+              <div className="text-sm font-bold text-gray-900">{user?.username}</div>
+              <div className="text-xs text-gray-500">Logged in</div>
+            </div>
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center text-white font-bold shadow-md">
+              {user?.username?.charAt(0).toUpperCase()}
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="flex-1 flex flex-col p-8 lg:p-10 h-full">
+
+            {/* Form Content */}
+            <div className="flex-1 flex flex-col space-y-6">
+              <div>
+                <h1 className="text-2xl font-black text-gray-900 mb-1">What did you do?</h1>
+                <p className="text-sm text-gray-500">Log your task efficiently. Markdown is supported.</p>
+              </div>
+
+              {/* Subject */}
+              <div>
+                <input
+                  type="text"
+                  value={formData.subject}
+                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                  className="w-full text-lg font-bold placeholder-gray-300 border-b-2 border-gray-100 py-3 focus:outline-none focus:border-purple-600 transition-colors bg-transparent"
+                  placeholder="Task Subject (e.g. Fixed login bug)"
+                  required
+                />
+              </div>
+
+              {/* Description */}
+              <div className="flex-1 relative group">
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full h-full resize-none text-base text-gray-700 bg-gray-50/50 rounded-2xl p-6 focus:bg-white focus:ring-2 focus:ring-purple-100 focus:outline-none transition-all border border-transparent focus:border-purple-200 leading-relaxed"
+                  placeholder="Detailed description of your work..."
                   required
                 />
               </div>
             </div>
-          </div>
 
-          {/* Subject Field */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-3">
-              Subject <span className="text-red-600">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.subject}
-              onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white hover:border-gray-400"
-              placeholder="Brief title of the activity (e.g., 'Fixed login bug', 'Completed UI design')"
-              required
-            />
-            <p className="text-xs text-gray-500 mt-2">Keep it concise and descriptive</p>
-          </div>
-
-          {/* Description Field */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-3">
-              Description <span className="text-red-600">*</span>
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all resize-none bg-white hover:border-gray-400"
-              placeholder="Describe what you accomplished... Be specific about what was done, any challenges, and results."
-              rows={6}
-              required
-            />
-            <p className="text-xs text-gray-500 mt-2">Tip: Be specific • Mention challenges • Include outcomes</p>
-          </div>
-
-          {/* Form Actions */}
-          <div className="flex gap-3 pt-8 border-t-2 border-gray-200">
-            <button
-              type="submit"
-              disabled={loading || (formData.isWfh && wfhUsage && !hasWfhOnDate ? (wfhUsage.summary ? (wfhUsage.summary.totalAvailable - wfhUsage.summary.totalUsed) <= 0 : (wfhUsage.remaining ?? 0) <= 0) : false)}
-              className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-4 rounded-xl hover:shadow-xl hover:shadow-purple-300 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 text-base"
-              title={formData.isWfh && wfhUsage && !hasWfhOnDate && (wfhUsage.summary ? (wfhUsage.summary.totalAvailable - wfhUsage.summary.totalUsed) <= 0 : (wfhUsage.remaining ?? 0) <= 0) ? 'WFH quota exceeded for this month' : ''}
-            >
-              {loading ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  <span>Saving...</span>
-                </>
-              ) : formData.isWfh && wfhUsage && !hasWfhOnDate && (wfhUsage.summary ? (wfhUsage.summary.totalAvailable - wfhUsage.summary.totalUsed) <= 0 : (wfhUsage.remaining ?? 0) <= 0) ? (
-                <>
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M13.477 14.89A6 6 0 112.5 5.5h2.016A6 6 0 0012 4c3.314 0 6 2.686 6 6 0 .26-.016.52-.048.776l2.086-.587A.5.5 0 0121 9.5v-4a.5.5 0 00-.5-.5h-4a.5.5 0 00-.467.683l.72 2.16a.5.5 0 00.466.317h2.01A5 5 0 107 9.5a.5.5 0 00-1 0 6 6 0 106.477-4.61z" clipRule="evenodd" />
-                  </svg>
-                  <span>Quota Exceeded</span>
-                </>
-              ) : (
-                <>
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm3.707 9.293a1 1 0 10-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" />
-                  </svg>
-                  <span>Log Activity</span>
-                </>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="px-6 py-4 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 hover:border-gray-400 transition-all font-semibold"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-
-        {/* Info Modal Popup */}
-        {showInfoPanel && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] flex flex-col">
-              {/* Modal Header - Gradient */}
-              <div className="bg-gradient-to-br from-purple-600 via-purple-500 to-pink-600 px-6 py-4 flex items-center justify-between flex-shrink-0">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
-                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <h2 className="text-lg font-bold text-white">Information</h2>
-                </div>
+            {/* Action Bar */}
+            <div className="mt-6 flex items-center justify-between pt-6 border-t border-gray-100">
+              <div className="text-red-500 text-sm font-medium flex items-center gap-2">
+                {error && (
+                  <>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    {error}
+                  </>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => setShowInfoPanel(false)}
-                  className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
-                  title="Close"
+                  onClick={() => router.back()}
+                  className="px-6 py-2.5 rounded-xl text-gray-500 font-semibold hover:bg-gray-100 transition-colors"
                 >
-                  <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading || (formData.isWfh && wfhUsage && !hasWfhOnDate && ((wfhUsage.team && wfhUsage.team.remaining <= 0 && formData.quotaType === 'team') || (wfhUsage.personal && wfhUsage.personal.remaining <= 0 && formData.quotaType === 'personal')))}
+                  className="px-8 py-3 bg-gray-900 hover:bg-black text-white rounded-xl font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center gap-2 disabled:opacity-50 disabled:transform-none"
+                >
+                  {loading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                  Log Activity
+                </button>
+              </div>
+            </div>
+
+          </form>
+        </div>
+
+        {/* Info Modal Popup (Matches new aesthetic) */}
+        {showInfoPanel && (
+          <div className="fixed inset-0 bg-gray-900/40 z-[60] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden transform transition-all scale-100 ring-1 ring-gray-200">
+              {/* Modal Header */}
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+                <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                  Quota Status
+                </h3>
+                <button onClick={() => setShowInfoPanel(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                  <span className="sr-only">Close</span>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               </div>
 
-              {/* Modal Content - Scrollable */}
-              <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
-                {/* Quota Display - Enhanced */}
+              {/* Modal Content */}
+              <div className="p-8 text-center space-y-6">
                 {formData.teamId && wfhUsage && (
-                  <div className={`rounded-lg overflow-hidden border-2 transition-all ${(wfhUsage.remaining ?? 0) > 0 ? 'bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-300' : 'bg-gradient-to-br from-red-50 to-red-100/50 border-red-300'}`}>
-                    {/* Header */}
-                    <div className={`px-4 py-3 ${(wfhUsage.remaining ?? 0) > 0 ? 'bg-blue-100/50' : 'bg-red-100/50'}`}>
-                      <p className="font-bold text-gray-900 text-sm text-center">📊 Your Monthly Quota Status</p>
-                    </div>
-
-                    {/* Main Content */}
-                    <div className="px-4 py-4 space-y-3">
-                      {/* Big Number Display */}
-                      <div className="text-center">
-                        <div className="inline-flex flex-col items-center gap-1">
-                          <div className={`text-4xl font-black ${(wfhUsage.remaining ?? 0) > 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                            {(wfhUsage.remaining ?? 0) > 0 ? (wfhUsage.remaining ?? 0) : '0'}
-                          </div>
-                          <p className={`text-xs font-semibold ${(wfhUsage.remaining ?? 0) > 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                            {(wfhUsage.remaining ?? 0) === 1 ? 'day remaining' : 'days remaining'}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Progress Bar */}
-                      <div>
-                        <div className="flex justify-between items-center mb-1.5">
-                          <p className="text-xs font-semibold text-gray-700">Usage Progress</p>
-                          <p className="text-xs font-bold text-gray-700">{Math.round(((wfhUsage.used ?? 0) / (wfhUsage.limit ?? 1)) * 100)}%</p>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-sm">
-                          <div
-                            className={`h-3 rounded-full transition-all ${(wfhUsage.remaining ?? 0) > 0 ? 'bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700' : 'bg-gradient-to-r from-red-500 via-red-600 to-red-700'}`}
-                            style={{ width: `${Math.min(((wfhUsage.used ?? 0) / (wfhUsage.limit ?? 1)) * 100, 100)}%` }}
-                          ></div>
-                        </div>
-                      </div>
-
-                      {/* Status Badge */}
-                      <div className={`px-3 py-2 rounded-lg text-center font-semibold text-xs ${(wfhUsage.remaining ?? 0) > 0 ? 'bg-blue-200 text-blue-800' : 'bg-red-200 text-red-800'}`}>
-                        {(wfhUsage.remaining ?? 0) > 0
-                          ? `✓ You can log ${wfhUsage.remaining ?? 0} more WFH activit${(wfhUsage.remaining ?? 0) === 1 ? 'y' : 'ies'} this month`
-                          : '⛔ WFH quota limit reached for this month'}
-                      </div>
-
-                      {/* Info Message */}
-                      <div className={`px-3 py-2 rounded-lg text-xs font-medium ${(wfhUsage.remaining ?? 0) > 0 ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>
-                        <p>
-                          {(wfhUsage.remaining ?? 0) > 0
-                            ? `${Math.ceil(((wfhUsage.remaining ?? 0) / (wfhUsage.limit ?? 1)) * 100)}% of your quota available`
-                            : 'No WFH activities can be logged until next month'}
-                        </p>
-                      </div>
+                  <div className="relative inline-flex items-center justify-center">
+                    <svg className="w-32 h-32 transform -rotate-90">
+                      <circle cx="64" cy="64" r="56" stroke="#f3f4f6" strokeWidth="12" fill="none" />
+                      <circle
+                        cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="12" fill="none"
+                        className={(wfhUsage.remaining ?? 0) > 0 ? "text-purple-600" : "text-red-500"}
+                        strokeDasharray={351}
+                        strokeDashoffset={351 - (351 * Math.min(((wfhUsage.used ?? 0) / (wfhUsage.limit ?? 1)), 1))}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className={`text-4xl font-black ${(wfhUsage.remaining ?? 0) > 0 ? "text-gray-900" : "text-red-600"}`}>
+                        {wfhUsage.remaining ?? 0}
+                      </span>
+                      <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Remaining</span>
                     </div>
                   </div>
                 )}
-
-                {/* What is WFH Section */}
-                <div className="bg-gradient-to-br from-orange-50 to-orange-100/50 rounded-lg p-3.5 border-2 border-orange-200">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-5 h-5 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M10.5 1.5H19.5V10.5H10.5z"></path>
-                      </svg>
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-gray-900 text-sm">All activities logged as WFH</p>
-                      <p className="text-xs text-gray-700 mt-1">Counted toward monthly quota limit</p>
-                    </div>
-                  </div>
+                <div>
+                  <h4 className="text-gray-900 font-bold mb-1">Monthly WFH Allowance</h4>
+                  <p className="text-sm text-gray-500">
+                    You've used <span className="font-semibold text-gray-900">{wfhUsage?.used ?? 0}</span> of your <span className="font-semibold text-gray-900">{wfhUsage?.limit ?? 0}</span> available days.
+                  </p>
                 </div>
 
-                {/* Tips - Compact */}
-                <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 rounded-lg p-3.5 border-2 border-indigo-200">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center flex-shrink-0 text-lg">
-                      💡
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-gray-900 text-sm mb-1.5">Quick Tips</p>
-                      <ul className="text-xs text-gray-700 space-y-0.5">
-                        <li>• Be specific & clear</li>
-                        <li>• Mention challenges</li>
-                        <li>• Include outcomes</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
               </div>
 
-              {/* Modal Footer */}
-              <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-t-2 border-gray-200 px-6 py-3 flex justify-end gap-2">
+              <div className="p-4 bg-gray-50 border-t border-gray-100">
                 <button
-                  type="button"
                   onClick={() => setShowInfoPanel(false)}
-                  className="px-4 py-1.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:shadow-lg hover:shadow-purple-300 transition-all font-semibold text-sm"
+                  className="w-full py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-100 transition-colors text-sm shadow-sm"
                 >
-                  Got it!
+                  Close
                 </button>
               </div>
             </div>

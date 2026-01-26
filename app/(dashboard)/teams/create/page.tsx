@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { teamAPI } from '@/lib/api';
 import { useNotificationStore } from '@/lib/store';
+import Link from 'next/link';
 
 export default function CreateTeamPage() {
   const router = useRouter();
@@ -15,7 +16,7 @@ export default function CreateTeamPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
     if (!formData.name.trim()) {
       const errorMsg = 'Team name is required';
       setError(errorMsg);
@@ -51,100 +52,97 @@ export default function CreateTeamPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Create Team</h1>
-        <p className="text-gray-600 mt-1">Form a new team to organize collaboration</p>
-      </div>
+    <div className="min-h-[80vh] flex flex-col items-center justify-center p-6">
+      <div className="max-w-xl w-full space-y-8">
 
-      {/* Error Alert */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-          <svg className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-          </svg>
-          <div>
-            <h3 className="font-semibold text-red-900">Error</h3>
-            <p className="text-red-700 text-sm mt-1">{error}</p>
+        {/* Header */}
+        <div className="text-center space-y-2">
+          <h1 className="text-4xl font-black text-gray-900 tracking-tight">Create New Team</h1>
+          <p className="text-gray-500 font-medium text-lg">Bring your people together and start collaborating.</p>
+        </div>
+
+        {/* Error Alert */}
+        {error && (
+          <div className="bg-red-50 border border-red-100 rounded-2xl p-4 flex items-center gap-3 text-red-700 animate-in fade-in slide-in-from-top-2">
+            <svg className="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span className="font-semibold">{error}</span>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Form Card */}
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow border border-gray-100 p-8 space-y-6">
-        {/* Team Name Field */}
-        <div>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
-            Team Name <span className="text-red-600">*</span>
-          </label>
-          <input
-            type="text"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
-            placeholder="e.g., Design Team, Backend Squad"
-            required
-          />
-          <p className="text-gray-600 text-xs mt-1">Choose a descriptive team name</p>
-        </div>
+        {/* Form Card */}
+        <div className="bg-white rounded-3xl shadow-2xl shadow-gray-200/50 border border-gray-100 p-8 md:p-10 relative overflow-hidden">
+          {/* Decorative gradient blob */}
+          <div className="absolute top-0 right-0 -mr-16 -mt-16 w-32 h-32 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full blur-3xl opacity-20 pointer-events-none"></div>
 
-        {/* Description Field */}
-        <div>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">Description</label>
-          <textarea
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all resize-none"
-            placeholder="Describe the purpose and goals of this team..."
-            rows={4}
-          />
-          <p className="text-gray-600 text-xs mt-1">Optional - helps team members understand their purpose</p>
-        </div>
+          <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
+            <div className="space-y-6">
+              <div>
+                <label htmlFor="teamName" className="block text-sm font-bold text-gray-700 mb-2 ml-1">Team Name</label>
+                <input
+                  id="teamName"
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-gray-100 focus:border-gray-400 focus:bg-white transition-all outline-none font-bold text-lg text-gray-900 placeholder:text-gray-300"
+                  placeholder="e.g. Engineering Squad"
+                  autoFocus
+                  required
+                />
+              </div>
 
-        {/* Info Box */}
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex gap-3">
-            <svg className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-            </svg>
-            <div>
-              <p className="text-sm font-medium text-green-900">Ready to Collaborate</p>
-              <p className="text-sm text-green-800 mt-1">After creating the team, you can add members and manage team activities.</p>
+              <div>
+                <label htmlFor="description" className="block text-sm font-bold text-gray-700 mb-2 ml-1">Description <span className="text-gray-400 font-normal">(Optional)</span></label>
+                <textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-gray-100 focus:border-gray-400 focus:bg-white transition-all outline-none font-medium text-gray-900 placeholder:text-gray-300 resize-none"
+                  placeholder="What is this team about?"
+                  rows={4}
+                />
+              </div>
             </div>
-          </div>
-        </div>
 
-        {/* Form Actions */}
-        <div className="flex gap-3 pt-4">
-          <button
-            type="submit"
-            disabled={loading}
-            className="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-2.5 rounded-lg hover:shadow-lg transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                Creating...
-              </>
-            ) : (
-              <>
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10.5 1.5H19.5V10.5H10.5z"></path>
-                </svg>
-                Create Team
-              </>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-          >
-            Cancel
-          </button>
+            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 flex gap-4">
+              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0 text-blue-600">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <div>
+                <h4 className="font-bold text-blue-900 text-sm mb-1">Team Roles</h4>
+                <p className="text-sm text-blue-700/80 leading-relaxed">
+                  After creating the team, you'll be assigned as the <strong>Team Admin</strong>. You can then invite other members and assign leads.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col-reverse md:flex-row gap-4 pt-4">
+              <Link
+                href="/teams"
+                className="px-8 py-4 rounded-xl font-bold text-gray-500 hover:text-gray-900 hover:bg-gray-100 text-center transition-all bg-transparent"
+              >
+                Cancel
+              </Link>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 px-8 py-4 bg-gray-900 hover:bg-black disabled:opacity-70 disabled:cursor-not-allowed text-white rounded-xl font-bold shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    Creating Team...
+                  </>
+                ) : (
+                  <>
+                    <span>Create Team</span>
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
         </div>
-      </form>
+      </div>
     </div>
   );
 }

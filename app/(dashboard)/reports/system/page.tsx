@@ -33,7 +33,7 @@ export default function SystemReportPage() {
   const user = useAuthStore((state) => state.user);
   const { addNotification } = useNotificationStore();
   const router = useRouter();
-  
+
   const [report, setReport] = useState<SystemReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState<string>('');
@@ -46,7 +46,6 @@ export default function SystemReportPage() {
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
-  // Helper function to format date to YYYY-MM-DD in local time (no timezone conversion)
   const formatLocalDate = (date: Date): string => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -57,34 +56,22 @@ export default function SystemReportPage() {
   const setMonthPeriod = (month: number, year: number) => {
     setSelectedMonth(month);
     setSelectedYear(year);
-    
-    // First day of the month
     const firstDay = new Date(year, month, 1);
-    // Last day of the month (day 0 of next month)
     const lastDay = new Date(year, month + 1, 0);
-    
-    // Format dates in local time to avoid timezone issues
     const startDateStr = formatLocalDate(firstDay);
     const endDateStr = formatLocalDate(lastDay);
-    
     setStartDate(startDateStr);
     setEndDate(endDateStr);
   };
 
   const goToPreviousMonth = () => {
-    if (selectedMonth === 0) {
-      setMonthPeriod(11, selectedYear - 1);
-    } else {
-      setMonthPeriod(selectedMonth - 1, selectedYear);
-    }
+    if (selectedMonth === 0) setMonthPeriod(11, selectedYear - 1);
+    else setMonthPeriod(selectedMonth - 1, selectedYear);
   };
 
   const goToNextMonth = () => {
-    if (selectedMonth === 11) {
-      setMonthPeriod(0, selectedYear + 1);
-    } else {
-      setMonthPeriod(selectedMonth + 1, selectedYear);
-    }
+    if (selectedMonth === 11) setMonthPeriod(0, selectedYear + 1);
+    else setMonthPeriod(selectedMonth + 1, selectedYear);
   };
 
   const getCurrentMonthLabel = () => {
@@ -103,8 +90,6 @@ export default function SystemReportPage() {
       router.push('/dashboard');
       return;
     }
-
-    // Initialize with current month dates
     const now = new Date();
     setMonthPeriod(now.getMonth(), now.getFullYear());
   }, [user, router, addNotification]);
@@ -117,12 +102,9 @@ export default function SystemReportPage() {
 
   const loadReport = async () => {
     if (!startDate || !endDate) return;
-    
+
     try {
-      const response = await reportingAPI.getSystemReport({
-        startDate,
-        endDate,
-      });
+      const response = await reportingAPI.getSystemReport({ startDate, endDate });
       setReport(response.data);
     } catch (error) {
       console.error('Failed to load system report:', error);
@@ -138,339 +120,239 @@ export default function SystemReportPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4">
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600"></div>
-          </div>
-          <p className="text-gray-700 font-semibold">Loading system report...</p>
-        </div>
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="w-16 h-16 border-4 border-gray-100 border-t-indigo-600 rounded-full animate-spin mb-6"></div>
+        <p className="text-gray-500 font-bold text-lg">Aggregating system data...</p>
       </div>
     );
   }
 
   if (!report) {
     return (
-      <div className="text-center py-12">
-        <h1 className="text-2xl font-bold text-red-600">Report Not Found</h1>
-        <p className="text-gray-600 mt-2">Unable to load the system report</p>
-      </div>
-    );
-  }
-
-  if (user?.role !== 'admin') {
-    return (
-      <div className="text-center py-12">
-        <h1 className="text-2xl font-bold text-red-600">Access Denied</h1>
-        <p className="text-gray-600 mt-2">Only administrators can access system reports</p>
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <h2 className="text-2xl font-black text-gray-900 mb-2">Report Not Found</h2>
+        <button onClick={() => window.location.href = '/reports'} className="text-indigo-600 font-bold hover:underline">Go Back</button>
       </div>
     );
   }
 
   const completionRate = report.systemStats.totalActivities > 0
-    ? ((report.systemStats.totalActivities - 
-        report.teams.reduce((sum, t) => sum + t.stats.blockedTasks, 0)) / 
-        report.systemStats.totalActivities * 100).toFixed(1)
+    ? ((report.systemStats.totalActivities -
+      report.teams.reduce((sum, t) => sum + t.stats.blockedTasks, 0)) /
+      report.systemStats.totalActivities * 100).toFixed(1)
     : '0';
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-indigo-700 to-indigo-900 rounded-xl shadow-lg p-8 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">
-              System Report
-            </h1>
-            <p className="text-indigo-100 mt-2">Organization-wide activity and productivity overview | Period: <strong>{getCurrentMonthLabel()}</strong> ({startDate} to {endDate})</p>
-          </div>
-          <Link
-            href="/reports"
-            className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors font-semibold"
-          >
-            ← Back
+    <div className="min-h-screen bg-gray-50/50 p-6 lg:p-10 font-sans">
+      <div className="max-w-7xl mx-auto space-y-10">
+
+        {/* Navigation & Header */}
+        <div className="space-y-6">
+          <Link href="/reports" className="inline-flex items-center gap-2 text-gray-400 hover:text-gray-900 font-bold transition-colors">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+            Back to Reports
           </Link>
-        </div>
-      </div>
 
-      {/* Period/Month Selector */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="space-y-4">
-          {/* Month Selector */}
-          <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-4">Select Report Period</h3>
-            <div className="flex items-center justify-center gap-4">
-              <button
-                onClick={goToPreviousMonth}
-                className="px-4 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-800 rounded-lg transition-colors font-semibold"
-              >
-                ← Previous
-              </button>
-              
-              <div className="flex gap-4 items-center">
-                <select
-                  value={selectedMonth}
-                  onChange={(e) => setMonthPeriod(parseInt(e.target.value), selectedYear)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-semibold"
-                >
-                  {months.map((month, index) => (
-                    <option key={index} value={index}>{month}</option>
-                  ))}
-                </select>
-                
-                <select
-                  value={selectedYear}
-                  onChange={(e) => setMonthPeriod(selectedMonth, parseInt(e.target.value))}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-semibold"
-                >
-                  {[2024, 2025, 2026, 2027].map((year) => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
+          <div className="bg-white rounded-3xl shadow-xl shadow-gray-100/50 border border-gray-100 p-8">
+            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+              <div>
+                <h1 className="text-4xl font-black text-gray-900 mb-2 tracking-tight">System Report</h1>
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-gray-500 font-medium">
+                  <span className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                    Organization Overview
+                  </span>
+                  <span className="flex items-center gap-2 text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    {getCurrentMonthLabel()}
+                  </span>
+                </div>
               </div>
-              
-              <button
-                onClick={goToNextMonth}
-                className="px-4 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-800 rounded-lg transition-colors font-semibold"
-              >
-                Next →
-              </button>
-            </div>
-          </div>
 
-          {/* Custom Date Range */}
-          <div className="pt-4 border-t border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4">Or Select Custom Date Range</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase">Start Date</label>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase">End Date</label>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div className="flex items-end gap-2">
-                <button
-                  onClick={() => {
-                    const now = new Date();
-                    setMonthPeriod(now.getMonth(), now.getFullYear());
-                  }}
-                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-semibold"
-                >
-                  Reset to Current Month
+              {/* Compact Controls */}
+              <div className="flex gap-3 bg-gray-50 p-2 rounded-2xl">
+                <button onClick={goToPreviousMonth} className="px-4 py-2 hover:bg-white hover:shadow-sm rounded-xl transition-all font-bold text-gray-500 hover:text-gray-900">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                <div className="flex gap-2">
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => setMonthPeriod(parseInt(e.target.value), selectedYear)}
+                    className="bg-transparent font-bold text-gray-900 outline-none cursor-pointer"
+                  >
+                    {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                  </select>
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setMonthPeriod(selectedMonth, parseInt(e.target.value))}
+                    className="bg-transparent font-bold text-gray-900 outline-none cursor-pointer"
+                  >
+                    {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+                <button onClick={goToNextMonth} className="px-4 py-2 hover:bg-white hover:shadow-sm rounded-xl transition-all font-bold text-gray-500 hover:text-gray-900">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                 </button>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* System Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg shadow p-6 border border-indigo-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-indigo-700 font-medium">Total Teams</div>
-              <div className="text-3xl font-bold text-indigo-600 mt-1">{report.systemStats.totalTeams}</div>
+        {/* Global Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xl shadow-indigo-900/5 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+            <div className="relative">
+              <div className="flex justify-between items-start mb-4">
+                <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-2xl">👥</div>
+              </div>
+              <div className="text-4xl font-black text-gray-900 mb-1">{report.systemStats.totalTeams}</div>
+              <div className="text-sm font-bold text-gray-400 uppercase tracking-wider">Active Teams</div>
             </div>
-            <div className="text-3xl">👥</div>
           </div>
-        </div>
-        <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg shadow p-6 border border-amber-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-amber-700 font-medium">Total Members</div>
-              <div className="text-3xl font-bold text-amber-600 mt-1">{report.systemStats.totalMembers}</div>
-            </div>
-            <div className="text-3xl">👤</div>
-          </div>
-        </div>
-        <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg shadow p-6 border border-indigo-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-indigo-700 font-medium">Total Activities</div>
-              <div className="text-3xl font-bold text-indigo-600 mt-1">{report.systemStats.totalActivities}</div>
-            </div>
-            <div className="text-3xl">📋</div>
-          </div>
-        </div>
-        <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg shadow p-6 border border-amber-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-amber-700 font-medium">WFH Days</div>
-              <div className="text-3xl font-bold text-amber-600 mt-1">{report.systemStats.totalWfhDays}</div>
-            </div>
-            <div className="text-3xl">🏠</div>
-          </div>
-        </div>
-      </div>
 
-      {/* Overall Metrics */}
-      <div className="bg-gradient-to-br from-indigo-50 to-indigo-50 rounded-lg shadow-sm border border-indigo-200 p-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-6">Overall Metrics</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded-lg p-4 border border-indigo-100 shadow-sm">
-            <div className="text-sm text-gray-600 font-medium mb-1">Avg Team Size</div>
-            <div className="text-3xl font-bold text-indigo-600">
-              {report.systemStats.totalTeams > 0
-                ? (report.systemStats.totalMembers / report.systemStats.totalTeams).toFixed(1)
-                : 0}
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xl shadow-indigo-900/5 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+            <div className="relative">
+              <div className="flex justify-between items-start mb-4">
+                <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-2xl">👤</div>
+                <span className="text-xs font-bold bg-blue-100 text-blue-700 px-2 py-1 rounded">Total</span>
+              </div>
+              <div className="text-4xl font-black text-gray-900 mb-1">{report.systemStats.totalMembers}</div>
+              <div className="text-sm font-bold text-gray-400 uppercase tracking-wider">Members</div>
             </div>
-            <div className="text-xs text-gray-500 mt-1">members per team</div>
           </div>
-          <div className="bg-white rounded-lg p-4 border border-amber-100 shadow-sm">
-            <div className="text-sm text-gray-600 font-medium mb-1">Avg Tasks per Member</div>
-            <div className="text-3xl font-bold text-amber-600">
-              {report.systemStats.totalMembers > 0
-                ? (report.systemStats.totalActivities / report.systemStats.totalMembers).toFixed(1)
-                : 0}
+
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xl shadow-indigo-900/5 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-purple-50 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+            <div className="relative">
+              <div className="flex justify-between items-start mb-4">
+                <div className="w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center text-2xl">📋</div>
+                <span className="text-xs font-bold bg-purple-100 text-purple-700 px-2 py-1 rounded">{completionRate}% Done</span>
+              </div>
+              <div className="text-4xl font-black text-gray-900 mb-1">{report.systemStats.totalActivities}</div>
+              <div className="text-sm font-bold text-gray-400 uppercase tracking-wider">Total Activities</div>
             </div>
-            <div className="text-xs text-gray-500 mt-1">tasks assigned</div>
           </div>
-          <div className="bg-white rounded-lg p-4 border border-indigo-100 shadow-sm">
-            <div className="text-sm text-gray-600 font-medium mb-1">Task Completion Rate</div>
-            <div className="text-3xl font-bold text-indigo-600">{completionRate}%</div>
-            <div className="text-xs text-gray-500 mt-1">overall completion</div>
-          </div>
-          <div className="bg-white rounded-lg p-4 border border-amber-100 shadow-sm">
-            <div className="text-sm text-gray-600 font-medium mb-1">WFH Usage Rate</div>
-            <div className="text-3xl font-bold text-amber-600">
-              {report.systemStats.totalActivities > 0
-                ? ((report.systemStats.totalWfhDays / report.systemStats.totalActivities) * 100).toFixed(1)
-                : 0}%
+
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xl shadow-indigo-900/5 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+            <div className="relative">
+              <div className="flex justify-between items-start mb-4">
+                <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-2xl">🏠</div>
+              </div>
+              <div className="text-4xl font-black text-gray-900 mb-1">{report.systemStats.totalWfhDays}</div>
+              <div className="text-sm font-bold text-gray-400 uppercase tracking-wider">WFH Days Used</div>
             </div>
-            <div className="text-xs text-gray-500 mt-1">of total activities</div>
           </div>
         </div>
-      </div>
 
-      {/* Team Breakdown */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">Team Breakdown</h2>
-        <div className="grid grid-cols-1 gap-4">
-          {report.teams
-            .sort((a, b) => b.stats.totalActivities - a.stats.totalActivities)
-            .map((team, idx) => {
-              const teamCompletionRate =
-                team.stats.totalActivities > 0
-                  ? (((team.stats.totalActivities - team.stats.blockedTasks) /
-                      team.stats.totalActivities) *
-                      100).toFixed(1)
-                  : '0';
+        {/* Detailed Insights */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Team Performance Breakdown */}
+          <div className="bg-white rounded-3xl shadow-xl shadow-gray-100/50 border border-gray-100 p-8">
+            <h2 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-2">
+              <span className="w-2 h-8 bg-indigo-500 rounded-full"></span>
+              Team Breakdown
+            </h2>
 
-              return (
-                <Link
-                  key={team.teamId}
-                  href={`/reports/activity?teamId=${team.teamId}`}
-                  className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6 border-l-4 border-indigo-400 cursor-pointer"
-                >
-                  <div className="flex items-center justify-between gap-6">
-                    {/* Team Info */}
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
+            <div className="space-y-4">
+              {report.teams
+                .sort((a, b) => b.stats.totalActivities - a.stats.totalActivities)
+                .map((team, idx) => {
+                  const teamRate = team.stats.totalActivities > 0
+                    ? ((team.stats.totalActivities - team.stats.blockedTasks) / team.stats.totalActivities * 100).toFixed(0)
+                    : '0';
+                  return (
+                    <Link
+                      key={team.teamId}
+                      href={`/reports/activity?teamId=${team.teamId}`}
+                      className="group flex items-center justify-between p-4 rounded-2xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-200"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-500 font-bold group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
                           {idx + 1}
                         </div>
                         <div>
-                          <h3 className="text-lg font-semibold text-gray-800 hover:text-indigo-600 transition-colors">
-                            {team.teamName}
-                          </h3>
-                          <p className="text-sm text-gray-600">
-                            {team.memberCount} member{team.memberCount !== 1 ? 's' : ''}
-                          </p>
+                          <h3 className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">{team.teamName}</h3>
+                          <p className="text-xs font-medium text-gray-500">{team.memberCount} Members</p>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Stats */}
-                    <div className="hidden md:grid grid-cols-4 gap-6 flex-1">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-indigo-600">
-                          {team.stats.totalActivities}
+                      <div className="flex items-center gap-6">
+                        <div className="text-right">
+                          <div className="font-black text-gray-900">{team.stats.totalActivities}</div>
+                          <div className="text-[10px] font-bold text-gray-400 uppercase">Tasks</div>
                         </div>
-                        <div className="text-xs text-gray-600 font-medium">Activities</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-amber-600">
-                          {team.stats.completedTasks}
+                        <div className="text-right w-16">
+                          <div className={`font-black ${parseInt(teamRate) > 80 ? 'text-emerald-500' : 'text-amber-500'}`}>{teamRate}%</div>
+                          <div className="text-[10px] font-bold text-gray-400 uppercase">Rate</div>
                         </div>
-                        <div className="text-xs text-gray-600 font-medium">Completed</div>
+                        <svg className="w-5 h-5 text-gray-300 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                       </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-indigo-600">
-                          {teamCompletionRate}%
-                        </div>
-                        <div className="text-xs text-gray-600 font-medium">Completion</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-amber-600">
-                          {team.stats.wfhDays}
-                        </div>
-                        <div className="text-xs text-gray-600 font-medium">WFH Days</div>
-                      </div>
-                    </div>
+                    </Link>
+                  );
+                })}
+            </div>
+          </div>
 
-                    {/* Arrow */}
-                    <svg
-                      className="w-5 h-5 text-gray-600 hidden md:block"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 10l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
+          {/* Metrics Overview Card */}
+          <div className="bg-gray-900 rounded-3xl p-8 text-white relative overflow-hidden">
+            {/* Decorative background */}
+            <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 bg-indigo-600/30 rounded-full blur-3xl"></div>
+            <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-60 h-60 bg-purple-600/20 rounded-full blur-3xl"></div>
+
+            <div className="relative z-10">
+              <h2 className="text-xl font-bold mb-6">Metrics Summary</h2>
+
+              <div className="space-y-6">
+                <div>
+                  <div className="flex justify-between items-end mb-2">
+                    <span className="text-gray-400 font-medium">Avg Team Size</span>
+                    <span className="text-2xl font-bold">
+                      {(report.systemStats.totalMembers / Math.max(1, report.systemStats.totalTeams)).toFixed(1)}
+                    </span>
                   </div>
-
-                  {/* Mobile Stats */}
-                  <div className="md:hidden grid grid-cols-2 gap-3 mt-4 pt-4 border-t">
-                    <div>
-                      <div className="text-lg font-bold text-indigo-600">
-                        {team.stats.totalActivities}
-                      </div>
-                      <div className="text-xs text-gray-600 font-medium">Activities</div>
-                    </div>
-                    <div>
-                      <div className="text-lg font-bold text-amber-600">
-                        {team.stats.completedTasks}
-                      </div>
-                      <div className="text-xs text-gray-600 font-medium">Completed</div>
-                    </div>
-                    <div>
-                      <div className="text-lg font-bold text-indigo-600">
-                        {teamCompletionRate}%
-                      </div>
-                      <div className="text-xs text-gray-600 font-medium">Completion</div>
-                    </div>
-                    <div>
-                      <div className="text-lg font-bold text-amber-600">
-                        {team.stats.wfhDays}
-                      </div>
-                      <div className="text-xs text-gray-600 font-medium">WFH Days</div>
-                    </div>
+                  <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+                    <div className="h-full bg-blue-500 w-1/2 rounded-full"></div>
                   </div>
-                </Link>
-              );
-            })}
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-end mb-2">
+                    <span className="text-gray-400 font-medium">Avg Tasks / Member</span>
+                    <span className="text-2xl font-bold">
+                      {(report.systemStats.totalActivities / Math.max(1, report.systemStats.totalMembers)).toFixed(1)}
+                    </span>
+                  </div>
+                  <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+                    <div className="h-full bg-purple-500 w-3/4 rounded-full"></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-end mb-2">
+                    <span className="text-gray-400 font-medium">WFH Utilization</span>
+                    <span className="text-2xl font-bold">
+                      {((report.systemStats.totalWfhDays / report.systemStats.totalActivities) * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+                    <div className="h-full bg-amber-500 w-1/4 rounded-full"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 p-4 bg-white/5 rounded-xl border border-white/10">
+                <p className="text-sm text-gray-300 leading-relaxed">
+                  <span className="text-blue-400 font-bold">Insight:</span> The organization is maintaining a healthy task completion rate of <span className="text-white font-bold">{completionRate}%</span>.
+                  Review individual team reports to identify bottlenecks.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Info Box */}
-      <div className="bg-gradient-to-r from-indigo-50 to-indigo-50 border border-indigo-200 rounded-lg p-6 shadow-sm">
-        <h3 className="font-semibold text-gray-800 mb-3">System Report Information</h3>
-        <p className="text-sm text-gray-700 leading-relaxed">
-          This system-wide report provides a comprehensive overview of all teams and their activities across your organization. 
-          Click on any team card to view detailed activity reports for that specific team and monitor productivity metrics.
-        </p>
       </div>
     </div>
   );

@@ -99,16 +99,16 @@ export default function ActivitiesPage() {
   const loadTeams = async (userId?: string) => {
     try {
       const response = await teamAPI.getTeams();
-      
+
       // Use the provided userId or fall back to currentUser?.id
       const userIdToCheck = userId || currentUser?.id;
-      
+
       // Check if current user is a lead in any team
       const isLead = response.data.teams.some((team: Team) => {
         const member = team.members.find(m => m.userId === userIdToCheck);
         return member?.isLead === true;
       });
-      
+
       setIsTeamLead(isLead);
       setTeams(response.data.teams);
     } catch (error) {
@@ -192,7 +192,7 @@ export default function ActivitiesPage() {
             }
           }
         }
-        
+
         // Filter out current user's activities to avoid duplication with "My Activities" tab
         allActivities = allActivities.filter(a => a.userId !== currentUser.id);
       }
@@ -264,9 +264,9 @@ export default function ActivitiesPage() {
 
     setUpdating(blockingActivityId);
     try {
-      await activityAPI.updateActivity(blockingActivityId, { 
+      await activityAPI.updateActivity(blockingActivityId, {
         status: 'Blocked',
-        blockedReason: blockReason 
+        blockedReason: blockReason
       });
       addNotification({
         type: 'success',
@@ -317,9 +317,9 @@ export default function ActivitiesPage() {
 
     setUpdating(editingActivityId);
     try {
-      await activityAPI.updateActivity(editingActivityId, { 
+      await activityAPI.updateActivity(editingActivityId, {
         subject: editSubject,
-        description: editDescription 
+        description: editDescription
       });
       addNotification({
         type: 'success',
@@ -412,111 +412,100 @@ export default function ActivitiesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Activities</h1>
-          <p className="text-gray-600 mt-1">Track all logged activities and progress</p>
-        </div>
-        <Link
-          href="/activities/create"
-          className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-6 py-3 rounded-lg hover:shadow-lg transition-all duration-200 font-medium flex items-center gap-2"
-        >
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M10.5 1.5H19.5V10.5H10.5z"></path>
-          </svg>
-          Log Activity
-        </Link>
-      </div>
+    <div className="min-h-screen bg-gray-50/50 p-6 lg:p-10 font-sans">
+      <div className="max-w-7xl mx-auto space-y-8">
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
-          <svg className="w-5 h-5 text-red-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-          </svg>
-          <p className="text-red-800 font-medium">{error}</p>
-        </div>
-      )}
-
-      {/* Tabs Section */}
-      {(isTeamLead || currentUser?.role === 'admin') && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="flex border-b border-gray-200">
-            <button
-              onClick={() => {
-                setActivityTab('my');
-                setSelectedUser('');
-                setCurrentPage(1);
-              }}
-              className={`flex-1 px-6 py-3 font-medium transition-all ${
-                activityTab === 'my'
-                  ? 'text-purple-600 border-b-2 border-purple-600 bg-purple-50'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              My Activities
-            </button>
-            <button
-              onClick={() => {
-                setActivityTab('team');
-                setCurrentPage(1);
-              }}
-              className={`flex-1 px-6 py-3 font-medium transition-all ${
-                activityTab === 'team'
-                  ? 'text-purple-600 border-b-2 border-purple-600 bg-purple-50'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              {currentUser?.role === 'admin' ? 'All Team Activities' : 'Team Activities'}
-            </button>
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-black text-gray-900 tracking-tight">Activities</h1>
+            <p className="text-gray-500 mt-1 font-medium">Track and manage your team's daily progress</p>
           </div>
+          <Link
+            href="/activities/create"
+            className="px-6 py-2.5 bg-gray-900 text-white font-bold rounded-xl shadow-lg hover:bg-black hover:scale-105 transition-all flex items-center gap-2 w-full md:w-auto justify-center"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Log Activity
+          </Link>
         </div>
-      )}
 
-      {/* Filters & Sort Section */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sticky top-0 z-40">
-        {/* Filter Row */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-2.5 mb-3">
-          <div className="relative">
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3">
+            <svg className="w-5 h-5 text-red-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+            <p className="text-red-800 font-bold text-sm">{error}</p>
+          </div>
+        )}
+
+        {/* Controls Container */}
+        <div className="bg-white rounded-2xl shadow-xl shadow-gray-100 border border-gray-100 p-5 space-y-5">
+
+          {/* Tabs */}
+          {(isTeamLead || currentUser?.role === 'admin') && (
+            <div className="flex p-1 bg-gray-100/50 rounded-xl">
+              <button
+                onClick={() => {
+                  setActivityTab('my');
+                  setSelectedUser('');
+                  setCurrentPage(1);
+                }}
+                className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${activityTab === 'my'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+                  }`}
+              >
+                My Activities
+              </button>
+              <button
+                onClick={() => {
+                  setActivityTab('team');
+                  setCurrentPage(1);
+                }}
+                className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${activityTab === 'team'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+                  }`}
+              >
+                {currentUser?.role === 'admin' ? 'All Team Activities' : 'Team Activities'}
+              </button>
+            </div>
+          )}
+
+          {/* Filters Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
             <input
               type="date"
               value={dateRange.start}
               onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white transition-all hover:border-gray-400"
-              title="From Date"
+              className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all"
             />
-          </div>
-
-          <div className="relative">
             <input
               type="date"
               value={dateRange.end}
               onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white transition-all hover:border-gray-400"
-              title="To Date"
+              className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all"
             />
-          </div>
 
-          <div className="relative">
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'InProgress' | 'Done' | 'Blocked')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white transition-all hover:border-gray-400 appearance-none cursor-pointer"
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all appearance-none cursor-pointer"
             >
               <option value="all">All Status</option>
               <option value="InProgress">In Progress</option>
               <option value="Done">Done</option>
               <option value="Blocked">Blocked</option>
             </select>
-          </div>
 
-          {activityTab === 'team' && (isTeamLead || currentUser?.role === 'admin') && (
-            <div className="relative">
+            {activityTab === 'team' && (isTeamLead || currentUser?.role === 'admin') ? (
               <select
                 value={selectedUser}
                 onChange={(e) => setSelectedUser(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white transition-all hover:border-gray-400 appearance-none cursor-pointer"
+                className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all appearance-none cursor-pointer"
               >
                 <option value="">All Members</option>
                 {teams
@@ -524,530 +513,305 @@ export default function ActivitiesPage() {
                   .flatMap(team =>
                     team.members
                       .filter(member => member.user.role !== 'admin')
-                      .map(member => ({
-                        key: member.userId,
-                        username: member.user.username,
-                      }))
+                      .map(member => ({ key: member.userId, username: member.user.username }))
                   )
                   .filter((v, i, a) => a.findIndex(t => t.key === v.key) === i)
                   .map(member => (
-                    <option key={member.key} value={member.key}>
-                      {member.username}
-                    </option>
+                    <option key={member.key} value={member.key}>{member.username}</option>
                   ))}
               </select>
-            </div>
-          )}
-
-          <button
-            onClick={handleApplyFilters}
-            disabled={applyingFilters}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md text-sm font-medium hover:bg-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap shadow-sm hover:shadow-md"
-          >
-            {applyingFilters ? (
-              <>
-                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Applying
-              </>
             ) : (
-              'Apply'
+              <div className="hidden lg:block"></div>
             )}
-          </button>
-        </div>
 
-        {/* Sort & Count Row */}
-        <div className="flex flex-col md:flex-row items-center gap-2.5 pt-3 border-t border-gray-100">
-          <div className="relative w-full md:w-auto">
+            <button
+              onClick={handleApplyFilters}
+              disabled={applyingFilters}
+              className="px-4 py-2.5 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex items-center justify-center gap-2"
+            >
+              {applyingFilters ? (
+                <>
+                  <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  <span>Applying...</span>
+                </>
+              ) : 'Apply Filter'}
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+            <div className="text-sm font-bold text-gray-500">
+              Found <span className="text-gray-900">{filteredActivities.length}</span> activities
+            </div>
             <select
               value={sortOrder}
               onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white transition-all hover:border-gray-400 appearance-none cursor-pointer"
+              className="pl-3 pr-8 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-700 outline-none focus:border-gray-400 cursor-pointer"
             >
               <option value="desc">Newest First</option>
               <option value="asc">Oldest First</option>
             </select>
           </div>
-
-          <div className="text-xs text-gray-600 md:ml-auto font-medium">
-            <span className="font-semibold text-gray-900">{filteredActivities.length}</span> {filteredActivities.length !== 1 ? 'activities' : 'activity'}
-          </div>
         </div>
-      </div>
 
-      {/* Loading Overlay Modal */}
-      {applyingFilters && (
-        <div className="flex items-center justify-center py-12 mb-8">
-          <div className="flex flex-col items-center gap-3">
-            <div className="relative w-10 h-10">
-              <svg className="animate-spin h-10 w-10 text-purple-600" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            </div>
-            <p className="text-sm text-gray-600 font-medium">Fetching activities...</p>
+        {applyingFilters ? (
+          <div className="py-20 text-center">
+            <div className="w-12 h-12 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-500 font-medium">Loading activities...</p>
           </div>
-        </div>
-      )}
-
-      {/* Activities Grid */}
-      {filteredActivities.length > 0 ? (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {paginatedActivities.map((activity) => (
-            <div
-              key={activity.id}
-              className="bg-white rounded-lg shadow-sm hover:shadow-md border border-gray-200 overflow-hidden transition-all duration-200 flex flex-col group"
-            >
-              {/* Card Header */}
-              <div className="px-5 pt-5 pb-3 border-b border-gray-100">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="w-9 h-9 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-medium text-sm flex-shrink-0">
-                      {activity.user.username[0].toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 truncate text-sm">{activity.user.username}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        {new Date(activity.date).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {activity.isWfh && (
-                      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-orange-100 text-orange-700 whitespace-nowrap">
-                        WFH
-                      </span>
-                    )}
-                    {activity.project && (
-                      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700 whitespace-nowrap">
-                        {activity.project}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center justify-end">
-                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium gap-1 ${getStatusColor(activity.status)}`}>
-                    {activity.status === 'Done' && '✓'}
-                    {activity.status === 'InProgress' && '○'}
-                    {activity.status === 'Blocked' && '✕'}
-                    {activity.status === 'InProgress' ? 'In Progress' : activity.status}
-                  </span>
-                </div>
-              </div>
-
-              {/* Card Body */}
-              <div className="px-5 py-3 flex-1">
-                <Link href={`/activities/${activity.id}`}>
-                  <p className="text-gray-900 font-semibold text-sm leading-relaxed line-clamp-2 hover:text-purple-600 transition-colors cursor-pointer">
-                    {activity.subject}
-                  </p>
-                </Link>
-                {activity.status === 'Blocked' && activity.blockedReason && (
-                  <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
-                    <p className="text-xs font-semibold text-red-900 flex items-center gap-1.5 mb-1">
-                      <span>⚠️</span> Blocked Reason
-                    </p>
-                    <p className="text-xs text-red-800 leading-relaxed">{activity.blockedReason}</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Card Footer - Timestamps */}
-              <div className="px-5 py-2.5 bg-gray-50 border-t border-gray-100 text-xs text-gray-600 space-y-1">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-500">Created:</span>
-                  <span className="font-medium text-gray-900">
-                    {new Date(activity.createdAt).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </span>
-                </div>
-                {activity.updatedAt && activity.updatedAt !== activity.createdAt && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-500">Closed:</span>
-                    <span className="font-medium text-gray-900">
-                      {new Date(activity.updatedAt).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Card Actions */}
-              <div className="px-5 py-3 border-t border-gray-100 bg-white space-y-3">
-                {activity.status === 'InProgress' ? (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleStatusChange(activity.id, 'Done')}
-                      disabled={updating === activity.id}
-                      className="flex-1 inline-flex items-center justify-center px-3 py-2 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {updating === activity.id ? '...' : '✓ Done'}
-                    </button>
-                    <button
-                      onClick={() => handleStatusChange(activity.id, 'Blocked')}
-                      disabled={updating === activity.id || (!isTeamLead && currentUser?.role !== 'admin')}
-                      className="flex-1 inline-flex items-center justify-center px-3 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      title={!isTeamLead && currentUser?.role !== 'admin' ? 'Only team leads can block activities' : ''}
-                    >
-                      {updating === activity.id ? '...' : '✕ Block'}
-                    </button>
-                  </div>
-                ) : activity.status === 'Done' && currentUser?.role === 'admin' ? (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleStatusChange(activity.id, 'Blocked')}
-                      disabled={updating === activity.id}
-                      className="flex-1 inline-flex items-center justify-center px-3 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {updating === activity.id ? '...' : '✕ Block'}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="text-center text-xs font-medium text-gray-600 py-2">
-                    {activity.status === 'Done' ? '✓ Completed' : '✕ Blocked'}
-                  </div>
-                )}
-                
-                {/* Edit and Delete Buttons - Hidden for Done activities (except for admins) */}
-                {(activity.status !== 'Done' || currentUser?.role === 'admin') && (
-                  <div className="flex gap-2 pt-1 border-t border-gray-100">
-                    <button
-                      onClick={() => handleEditClick(activity)}
-                      disabled={updating === activity.id}
-                      className="flex-1 inline-flex items-center justify-center px-3 py-2 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {updating === activity.id ? '...' : '✏️ Edit'}
-                    </button>
-                    <button
-                      onClick={() => handleDeleteClick(activity.id)}
-                      disabled={updating === activity.id}
-                      className="flex-1 inline-flex items-center justify-center px-3 py-2 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {updating === activity.id ? '...' : '🗑️ Delete'}
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-          </div>
-
-          {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 flex items-center justify-between">
-              <div className="text-sm text-gray-600">
-                Page <span className="font-semibold text-gray-900">{currentPage}</span> of <span className="font-semibold text-gray-900">{totalPages}</span> 
-                <span className="text-xs text-gray-500 ml-2">({pagination?.total || activities.length} total)</span>
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-3 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
+        ) : filteredActivities.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {paginatedActivities.map((activity) => (
+                <div
+                  key={activity.id}
+                  className="bg-white rounded-2xl shadow-xl shadow-gray-100 border border-gray-100 overflow-hidden transition-all duration-200 hover:-translate-y-1 flex flex-col group"
                 >
-                  ← Previous
+                  <div className="px-5 pt-5 pb-3">
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 bg-gradient-to-br from-gray-800 to-black rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md flex-shrink-0">
+                          {activity.user.username[0].toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-gray-900 truncate leading-tight">{activity.user.username}</p>
+                          <p className="text-[10px] uppercase font-bold text-gray-400 mt-0.5 tracking-wide">
+                            {new Date(activity.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${activity.status === 'Done' ? 'bg-green-100 text-green-700' :
+                          activity.status === 'InProgress' ? 'bg-blue-100 text-blue-700' :
+                            'bg-red-100 text-red-700'
+                          }`}>
+                          {activity.status}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 mb-2">
+                      {activity.isWfh && (
+                        <div className="px-2 py-0.5 rounded-md bg-orange-50 text-orange-700 border border-orange-100 text-[10px] font-bold uppercase tracking-wider">WFH</div>
+                      )}
+                      {activity.project && (
+                        <div className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100 text-[10px] font-bold uppercase tracking-wider max-w-[150px] truncate">{activity.project}</div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="px-5 pb-5 flex-1">
+                    <Link href={`/activities/${activity.id}`}>
+                      <h3 className="font-bold text-gray-900 leading-snug hover:text-purple-600 transition-colors cursor-pointer line-clamp-2 mb-2">
+                        {activity.subject}
+                      </h3>
+                    </Link>
+                    {activity.status === 'Blocked' && activity.blockedReason && (
+                      <div className="bg-red-50 rounded-xl p-3 border border-red-100 mt-2">
+                        <p className="text-xs font-bold text-red-800 flex items-center mb-1">
+                          Blocked Reason
+                        </p>
+                        <p className="text-xs text-red-600 leading-relaxed">{activity.blockedReason}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-auto border-t border-gray-100 bg-gray-50/50 p-3 flex items-center gap-2">
+                    {activity.status === 'InProgress' ? (
+                      <>
+                        <button onClick={() => handleStatusChange(activity.id, 'Done')} disabled={!!updating} className="flex-1 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs font-bold transition-all shadow-sm">Mark Done</button>
+                        <button onClick={() => handleStatusChange(activity.id, 'Blocked')} disabled={!!updating} className="px-3 py-2 bg-white border border-gray-200 text-gray-600 hover:text-red-600 rounded-lg text-xs font-bold transition-all">Block</button>
+                      </>
+                    ) : activity.status === 'Done' ? (
+                      <div className="flex-1 py-1.5 text-center text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Completed</div>
+                    ) : (
+                      <div className="flex-1 py-1.5 text-center text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-red-500"></span> Blocked</div>
+                    )}
+                    {(activity.status !== 'Done' || currentUser?.role === 'admin') && (
+                      <div className="flex items-center gap-1 pl-2 border-l border-gray-200">
+                        <button onClick={() => handleEditClick(activity)} className="p-2 text-gray-400 hover:text-blue-600 rounded-lg"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
+                        <button onClick={() => handleDeleteClick(activity.id)} className="p-2 text-gray-400 hover:text-red-600 rounded-lg"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="bg-white rounded-2xl shadow-xl shadow-gray-100 border border-gray-100 p-4 flex flex-col md:flex-row items-center justify-between gap-4 mt-6">
+                <div className="text-sm font-bold text-gray-500">
+                  Page <span className="text-gray-900">{currentPage}</span> of <span className="text-gray-900">{totalPages}</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+
+                  <div className="flex items-center gap-1 hidden sm:flex">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-9 h-9 rounded-xl text-sm font-bold transition-all ${currentPage === page
+                            ? 'bg-gray-900 text-white shadow-lg'
+                            : 'text-gray-500 hover:bg-gray-50'
+                          }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="bg-white rounded-3xl border-2 border-dashed border-gray-200 p-20 text-center">
+            <p className="text-gray-400 font-bold mb-2">No activities found</p>
+            <Link href="/activities/create" className="px-5 py-2 bg-gray-900 text-white text-sm font-bold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all inline-block">
+              Log First Activity
+            </Link>
+          </div>
+        )}
+
+        {/* Edit Modal */}
+        {showEditModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl transform transition-all">
+              <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+                <h3 className="text-xl font-black text-gray-900">Edit Activity</h3>
+                <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
+              </div>
 
-                <div className="flex items-center gap-0.5">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`w-8 h-8 rounded-md font-medium text-sm transition-colors ${
-                        currentPage === page
-                          ? 'bg-purple-600 text-white'
-                          : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Subject</label>
+                  <input
+                    type="text"
+                    value={editSubject}
+                    onChange={(e) => setEditSubject(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all font-medium"
+                  />
                 </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Description</label>
+                  <textarea
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    rows={4}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all font-medium resize-none"
+                  />
+                </div>
+              </div>
 
+              <div className="px-6 py-4 bg-gray-50/50 rounded-b-2xl border-t border-gray-100 flex justify-end gap-3">
                 <button
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
+                  onClick={() => setShowEditModal(false)}
+                  className="px-5 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-all"
                 >
-                  Next →
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={!!updating}
+                  className="px-5 py-2.5 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition-all disabled:opacity-50"
+                >
+                  {updating ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </div>
-          )}
-        </>
-      ) : (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
-            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-            </svg>
           </div>
-          <p className="text-gray-900 font-semibold mb-1 text-base">No activities found</p>
-          <p className="text-gray-600 text-sm mb-6">Try adjusting your filters or start logging new activities</p>
-          <Link
-            href="/activities/create"
-            className="inline-flex items-center px-4 py-2.5 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors font-medium text-sm"
-          >
-            <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M10.5 1.5H19.5V10.5H10.5z"></path>
-            </svg>
-            Log Activity
-          </Link>
-        </div>
-      )}
+        )}
 
-      {/* Edit Activity Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md">
-            {/* Modal Header */}
-            <div className="bg-blue-50 border-b border-blue-200 px-6 py-4 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-blue-900 flex items-center gap-2">
-                <span className="text-xl">✏️</span>
-                Edit Activity
-              </h3>
-              <button
-                onClick={() => {
-                  setShowEditModal(false);
-                  setEditingActivityId(null);
-                  setEditSubject('');
-                  setEditDescription('');
-                }}
-                className="text-blue-600 hover:text-blue-800 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="p-6 space-y-4">
-              <div>
-                <label htmlFor="editSubject" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Activity Subject *
-                </label>
-                <input
-                  id="editSubject"
-                  type="text"
-                  value={editSubject}
-                  onChange={(e) => setEditSubject(e.target.value)}
-                  placeholder="Enter activity subject..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-colors text-gray-900"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {editSubject.length > 0 ? `${editSubject.length} characters` : 'Required'}
-                </p>
+        {/* Delete Modal */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center">
+              <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
               </div>
-              <div>
-                <label htmlFor="editDescription" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Activity Description *
-                </label>
-                <textarea
-                  id="editDescription"
-                  value={editDescription}
-                  onChange={(e) => setEditDescription(e.target.value)}
-                  placeholder="Enter activity description..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-colors resize-none text-gray-900"
-                  rows={5}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {editDescription.length > 0 ? `${editDescription.length} characters` : 'Required'}
-                </p>
+              <h3 className="text-xl font-black text-gray-900 mb-2">Delete Activity?</h3>
+              <p className="text-gray-500 font-medium mb-8">This action cannot be undone.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="px-4 py-3 text-gray-700 bg-gray-100 font-bold rounded-xl hover:bg-gray-200 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  disabled={!!updating}
+                  className="px-4 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-all disabled:opacity-50"
+                >
+                  {updating ? '...' : 'Delete'}
+                </button>
               </div>
             </div>
-
-            {/* Modal Footer */}
-            <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowEditModal(false);
-                  setEditingActivityId(null);
-                  setEditSubject('');
-                  setEditDescription('');
-                }}
-                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveEdit}
-                disabled={editSubject.trim() === '' || editDescription.trim() === '' || updating === editingActivityId}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {updating === editingActivityId ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <span>✏️</span>
-                    Save Changes
-                  </>
-                )}
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md">
-            {/* Modal Header */}
-            <div className="bg-red-50 border-b border-red-200 px-6 py-4 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-red-900 flex items-center gap-2">
-                <span className="text-xl">⚠️</span>
-                Delete Activity
-              </h3>
-              <button
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setDeletingActivityId(null);
-                }}
-                className="text-red-600 hover:text-red-800 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+        {/* Block Modal */}
+        {showBlockModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl transform transition-all">
+              <div className="px-6 py-5 border-b border-gray-100">
+                <h3 className="text-xl font-black text-gray-900">Block Activity</h3>
+              </div>
 
-            {/* Modal Content */}
-            <div className="p-6">
-              <p className="text-gray-700 text-sm leading-relaxed">
-                Are you sure you want to delete this activity? This action cannot be undone.
-              </p>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setDeletingActivityId(null);
-                }}
-                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmDelete}
-                disabled={updating === deletingActivityId}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {updating === deletingActivityId ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Deleting...
-                  </>
-                ) : (
-                  <>
-                    <span>🗑️</span>
-                    Delete Activity
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Block Reason Modal */}
-      {showBlockModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md">
-            {/* Modal Header */}
-            <div className="bg-red-50 border-b border-red-200 px-6 py-4 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-red-900 flex items-center gap-2">
-                <span className="text-xl">✕</span>
-                Block Activity
-              </h3>
-              <button
-                onClick={() => {
-                  setShowBlockModal(false);
-                  setBlockingActivityId(null);
-                  setBlockReason('');
-                }}
-                className="text-red-600 hover:text-red-800 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="p-6 space-y-4">
-              <div>
-                <label htmlFor="blockReason" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Reason for blocking *
-                </label>
+              <div className="p-6 space-y-4">
+                <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex gap-3">
+                  <svg className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                  <p className="text-sm text-red-800 font-medium">Please provide a reason. This will be visible to the team.</p>
+                </div>
                 <textarea
-                  id="blockReason"
                   value={blockReason}
                   onChange={(e) => setBlockReason(e.target.value)}
-                  placeholder="Enter the reason why this activity is blocked..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-colors resize-none text-gray-900"
-                  rows={4}
+                  rows={3}
+                  placeholder="Ex: Waiting for API deployment..."
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all font-medium resize-none placeholder:text-gray-400"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  {blockReason.length > 0 ? `${blockReason.length} characters` : 'Required'}
-                </p>
+              </div>
+
+              <div className="px-6 py-4 bg-gray-50/50 rounded-b-2xl border-t border-gray-100 flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setShowBlockModal(false);
+                    setBlockingActivityId(null);
+                    setBlockReason('');
+                  }}
+                  className="px-5 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleBlockActivity}
+                  disabled={!!updating || !blockReason.trim()}
+                  className="px-5 py-2.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-all disabled:opacity-50"
+                >
+                  {updating ? 'Blocking...' : 'Confirm Block'}
+                </button>
               </div>
             </div>
-
-            {/* Modal Footer */}
-            <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowBlockModal(false);
-                  setBlockingActivityId(null);
-                  setBlockReason('');
-                }}
-                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleBlockActivity}
-                disabled={blockReason.trim() === '' || updating === blockingActivityId}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {updating === blockingActivityId ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Blocking...
-                  </>
-                ) : (
-                  <>
-                    <span>✕</span>
-                    Block Activity
-                  </>
-                )}
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

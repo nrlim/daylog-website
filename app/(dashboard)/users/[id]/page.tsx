@@ -50,11 +50,13 @@ export default function UserDetailPage() {
   const loadTopPerformers = async () => {
     try {
       const response = await api.get('/top-performers');
-      const performers = response.data.performers.map((p: any) => ({
-        rank: p.rank,
-        username: p.user.username,
-      }));
-      setCurrentTopPerformers(performers);
+      if (response.data && response.data.performers) {
+        const performers = response.data.performers.map((p: any) => ({
+          rank: p.rank,
+          username: p.user.username,
+        }));
+        setCurrentTopPerformers(performers);
+      }
     } catch (error) {
       console.error('Failed to load top performers:', error);
     }
@@ -75,7 +77,6 @@ export default function UserDetailPage() {
 
   const handleChangeRole = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     try {
       await userAPI.changeUserRole(userId, formData.role);
       loadUser();
@@ -92,14 +93,7 @@ export default function UserDetailPage() {
   };
 
   const handleSetTopPerformer = async (rank: number) => {
-    if (!user || user.role !== 'admin') {
-      addNotification({
-        type: 'error',
-        title: 'Error',
-        message: 'Only admins can set top performers',
-      });
-      return;
-    }
+    if (!user || user.role !== 'admin') return;
 
     setSettingTopPerformer(rank);
     try {
@@ -126,201 +120,216 @@ export default function UserDetailPage() {
   };
 
   if (loading) {
-    return <div className="px-4 py-6">Loading...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="w-10 h-10 border-2 border-gray-100 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-400 font-medium text-sm">Loading profile...</p>
+      </div>
+    );
   }
 
   if (!userDetail) {
-    return <div className="px-4 py-6">User not found</div>;
+    return <div className="p-10 text-center text-gray-500">User not found</div>;
   }
 
-  const getRoleBadgeColor = (role: string) => {
-    switch (role) {
-      case 'admin': return 'bg-red-100 text-red-800';
-      case 'member': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   return (
-    <div className="px-4 py-6 max-w-4xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">{userDetail.username}</h1>
+    <div className="min-h-screen bg-gray-50/30 p-6 lg:p-10 font-sans">
+      <div className="max-w-5xl mx-auto space-y-8">
+
+        {/* Navigation */}
         <button
           onClick={() => router.back()}
-          className="text-gray-600 hover:text-gray-900"
+          className="flex items-center gap-2 text-gray-500 hover:text-indigo-600 transition-colors font-medium text-sm mb-2"
         >
-          ← Back
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+          Back to Team
         </button>
-      </div>
 
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
-        </div>
-      )}
+        {/* Profile Header Card */}
+        <div className="bg-white rounded-3xl shadow-xl shadow-gray-100/50 border border-gray-100 overflow-hidden relative">
+          {/* Cover Banner */}
+          <div className="h-32 bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-gray-100"></div>
 
-      {/* User Info */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">User Information</h2>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-gray-500">Username</p>
-            <p className="font-medium">{userDetail.username}</p>
-          </div>
-          
-          <div>
-            <p className="text-sm text-gray-500">Email</p>
-            <p className="font-medium">{userDetail.email || 'Not provided'}</p>
-          </div>
-          
-          <div>
-            <p className="text-sm text-gray-500">Role</p>
-            <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(userDetail.role)}`}>
-              {userDetail.role}
-            </span>
-          </div>
-          
-          <div>
-            <p className="text-sm text-gray-500">Created At</p>
-            <p className="font-medium">{new Date(userDetail.createdAt).toLocaleDateString()}</p>
-          </div>
-        </div>
+          <div className="px-8 pb-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end -mt-12 gap-6">
 
-        {!isEditing ? (
-          <button
-            onClick={() => setIsEditing(true)}
-            className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-          >
-            Change Role
-          </button>
-        ) : (
-          <form onSubmit={handleChangeRole} className="mt-4">
-            <div className="flex items-center gap-2">
-              <select
-                value={formData.role}
-                onChange={(e) => setFormData({ role: e.target.value })}
-                className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="admin">Admin</option>
-                <option value="member">Member</option>
-              </select>
-              <button
-                type="submit"
-                className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-              >
-                Save
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsEditing(false)}
-                className="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400"
-              >
-                Cancel
-              </button>
+              {/* Avatar & Info */}
+              <div className="flex items-end gap-6">
+                <div className="w-24 h-24 rounded-3xl bg-white p-1 shadow-lg">
+                  <div className="w-full h-full rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-4xl font-black">
+                    {userDetail.username.charAt(0).toUpperCase()}
+                  </div>
+                </div>
+                <div className="mb-2">
+                  <h1 className="text-3xl font-black text-gray-900 leading-tight">{userDetail.username}</h1>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide border ${userDetail.role === 'admin' ? 'bg-rose-50 text-rose-700 border-rose-100' : 'bg-indigo-50 text-indigo-700 border-indigo-100'
+                      }`}>
+                      {userDetail.role}
+                    </span>
+                    <span className="text-sm text-gray-500 font-medium flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      Joined {new Date(userDetail.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="mb-2 w-full md:w-auto">
+                {!isEditing ? (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="w-full md:w-auto px-5 py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 font-bold rounded-xl transition-all text-sm flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                    Edit Role
+                  </button>
+                ) : (
+                  <form onSubmit={handleChangeRole} className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-xl border border-gray-200">
+                    <select
+                      value={formData.role}
+                      onChange={(e) => setFormData({ role: e.target.value })}
+                      className="bg-white border-0 rounded-lg py-1.5 pl-3 pr-8 text-sm font-semibold focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="member">Member</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                    <button type="submit" className="p-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                    </button>
+                    <button type="button" onClick={() => setIsEditing(false)} className="p-1.5 text-gray-500 hover:text-rose-600">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </form>
+                )}
+              </div>
             </div>
-          </form>
-        )}
-      </div>
 
-      {/* Top Performer Setting */}
-      {user && user.role === 'admin' && (
-        <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg shadow p-6 mb-6 border border-yellow-200">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            🏆 Set as Top Performer
-          </h2>
-          
-          <p className="text-sm text-gray-600 mb-4">
-            Assign {userDetail.username} to one of the podium positions for this month
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {[1, 2, 3].map((rank) => {
-              const currentRank = currentTopPerformers.find(p => p.rank === rank);
-              return (
-                <button
-                  key={rank}
-                  onClick={() => handleSetTopPerformer(rank)}
-                  disabled={settingTopPerformer === rank}
-                  className={`p-4 rounded-lg font-semibold transition-all ${
-                    rank === 1
-                      ? 'bg-gradient-to-br from-yellow-300 to-yellow-500 text-white hover:shadow-lg'
-                      : rank === 2
-                      ? 'bg-gradient-to-br from-slate-300 to-slate-400 text-white hover:shadow-lg'
-                      : 'bg-gradient-to-br from-orange-300 to-orange-500 text-white hover:shadow-lg'
-                  } ${settingTopPerformer === rank ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  <div className="text-2xl mb-2">
-                    {rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'}
-                  </div>
-                  <div>Top {rank}</div>
-                  {currentRank && (
-                    <div className="text-xs mt-2 opacity-90">
-                      Current: {currentRank.username}
-                    </div>
-                  )}
-                  {settingTopPerformer === rank && (
-                    <div className="text-xs mt-2">Setting...</div>
-                  )}
-                </button>
-              );
-            })}
+            {/* Email Section */}
+            <div className="mt-8 pt-6 border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <p className="text-xs font-bold text-gray-400 uppercase mb-1">Email Address</p>
+                <p className="font-semibold text-gray-900">{userDetail.email || 'No email provided'}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-400 uppercase mb-1">User ID</p>
+                <p className="font-family-mono text-sm text-gray-500">{userDetail.id}</p>
+              </div>
+            </div>
           </div>
         </div>
-      )}
 
-      {/* Teams */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Teams ({userDetail.teamMembers.length})</h2>
-        
-        {userDetail.teamMembers.length > 0 ? (
-          <div className="space-y-2">
-            {userDetail.teamMembers.map((member) => (
-              <div key={member.id} className="flex justify-between items-center p-3 border rounded">
-                <div>
-                  <p className="font-medium">{member.team.name}</p>
-                  <p className="text-sm text-gray-500">Role: {member.role}</p>
-                </div>
-                <a href={`/teams/${member.team.id}`} className="text-blue-500 hover:underline">
-                  View Team
-                </a>
-              </div>
-            ))}
+        {/* Admin Section: Top Performer */}
+        {user && user.role === 'admin' && (
+          <div className="bg-white rounded-3xl shadow-xl shadow-gray-100/50 border border-gray-100 p-8">
+            <h2 className="text-lg font-black text-gray-900 mb-6 flex items-center gap-2">
+              <span>🏆</span> Set Monthly Ranking
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[1, 2, 3].map((rank) => {
+                const currentRank = currentTopPerformers.find(p => p.rank === rank);
+                const isCurrent = currentRank?.username === userDetail.username;
+                return (
+                  <button
+                    key={rank}
+                    onClick={() => handleSetTopPerformer(rank)}
+                    disabled={settingTopPerformer === rank}
+                    className={`group relative p-6 rounded-2xl border transition-all duration-300 ${rank === 1 ? 'border-amber-200 bg-amber-50/50 hover:bg-amber-50 hover:border-amber-300' :
+                        rank === 2 ? 'border-slate-200 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300' :
+                          'border-orange-200 bg-orange-50/50 hover:bg-orange-50 hover:border-orange-300'
+                      }`}
+                  >
+                    {isCurrent && (
+                      <div className="absolute top-3 right-3 text-xs font-bold bg-white px-2 py-1 rounded-full shadow-sm border border-gray-100 text-green-600">
+                        Active
+                      </div>
+                    )}
+                    <div className="text-4xl mb-3 group-hover:scale-110 transition-transform duration-300">
+                      {rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'}
+                    </div>
+                    <div className={`font-black uppercase tracking-wider text-sm mb-1 ${rank === 1 ? 'text-amber-700' : rank === 2 ? 'text-slate-700' : 'text-orange-700'
+                      }`}>Top {rank}</div>
+
+                    {currentRank ? (
+                      <div className="text-xs text-gray-500 font-medium">Currently: {currentRank.username}</div>
+                    ) : (
+                      <div className="text-xs text-gray-400 italic">Position Empty</div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        ) : (
-          <p className="text-gray-500">Not a member of any teams</p>
         )}
-      </div>
 
-      {/* Activities */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">Recent Activities ({userDetail.activities.length})</h2>
-        
-        {userDetail.activities.length > 0 ? (
-          <div className="space-y-3">
-            {userDetail.activities.slice(0, 5).map((activity) => (
-              <div key={activity.id} className="p-3 border rounded">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-medium">{activity.description}</p>
-                    <p className="text-sm text-gray-500">
-                      {new Date(activity.date).toLocaleDateString()}
-                    </p>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Teams Section */}
+          <div className="lg:col-span-1 space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-gray-900">Teams</h3>
+              <span className="text-xs font-bold bg-gray-100 text-gray-600 px-2 py-1 rounded-lg">{userDetail.teamMembers.length}</span>
+            </div>
+
+            {userDetail.teamMembers.length > 0 ? (
+              <div className="space-y-4">
+                {userDetail.teamMembers.map((member) => (
+                  <div key={member.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                    <h4 className="font-bold text-gray-900">{member.team.name}</h4>
+                    <div className="flex justify-between items-center mt-3">
+                      <span className="text-xs font-semibold bg-gray-50 text-gray-500 px-2 py-1 rounded uppercase tracking-wide">{member.role}</span>
+                      <a href={`/teams/${member.team.id}`} className="text-xs font-bold text-indigo-600 hover:underline">View Team</a>
+                    </div>
                   </div>
-                  <span className={`text-xs px-2 py-1 rounded ${
-                    activity.status === 'Done' ? 'bg-green-100 text-green-800' :
-                    activity.status === 'InProgress' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-red-100 text-red-800'
-                  }`}>
-                    {activity.status}
-                  </span>
-                </div>
+                ))}
               </div>
-            ))}
+            ) : (
+              <div className="bg-gray-50 rounded-2xl border border-gray-100 border-dashed p-6 text-center">
+                <p className="text-sm text-gray-500">Not assigned to any teams.</p>
+              </div>
+            )}
           </div>
-        ) : (
-          <p className="text-gray-500">No activities yet</p>
-        )}
+
+          {/* Activities Section */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-gray-900">Recent Activity</h3>
+              <span className="text-xs font-medium text-gray-500">Last 5 entries</span>
+            </div>
+
+            <div className="bg-white rounded-3xl shadow-xl shadow-gray-100/50 border border-gray-100 overflow-hidden">
+              {userDetail.activities.length > 0 ? (
+                <div className="divide-y divide-gray-100">
+                  {userDetail.activities.slice(0, 5).map((activity) => (
+                    <div key={activity.id} className="p-6 hover:bg-gray-50/50 transition-colors">
+                      <div className="flex justify-between items-start gap-4">
+                        <div>
+                          <p className="font-medium text-gray-900 mb-1">{activity.description}</p>
+                          <p className="text-xs font-bold text-gray-400 uppercase">
+                            {new Date(activity.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                        <span className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wide ${activity.status === 'Done' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
+                            activity.status === 'InProgress' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                              'bg-rose-50 text-rose-700 border border-rose-100'
+                          }`}>
+                          {activity.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-12 text-center">
+                  <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">💤</div>
+                  <p className="text-gray-900 font-medium">No recent activity</p>
+                  <p className="text-sm text-gray-500 mt-1">This user hasn't logged any tasks yet.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   );

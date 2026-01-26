@@ -43,7 +43,7 @@ export default function ActivityReportPage() {
   const { addNotification } = useNotificationStore();
   const searchParams = useSearchParams();
   const teamId = searchParams.get('teamId');
-  
+
   const [report, setReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedMembers, setExpandedMembers] = useState<Set<string>>(new Set());
@@ -70,16 +70,16 @@ export default function ActivityReportPage() {
   const setMonthPeriod = (month: number, year: number) => {
     setSelectedMonth(month);
     setSelectedYear(year);
-    
+
     // First day of the month
     const firstDay = new Date(year, month, 1);
     // Last day of the month (day 0 of next month)
     const lastDay = new Date(year, month + 1, 0);
-    
+
     // Format dates in local time to avoid timezone issues
     const startDateStr = formatLocalDate(firstDay);
     const endDateStr = formatLocalDate(lastDay);
-    
+
     setStartDate(startDateStr);
     setEndDate(endDateStr);
   };
@@ -112,7 +112,7 @@ export default function ActivityReportPage() {
 
   const loadReport = async () => {
     if (!teamId || !startDate || !endDate) return;
-    
+
     setLoading(true);
     try {
       const response = await reportingAPI.getTeamActivityReport(teamId, {
@@ -150,72 +150,44 @@ export default function ActivityReportPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Done':
-        return 'bg-green-100 text-green-800 border-green-300';
-      case 'InProgress':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      case 'Blocked':
-        return 'bg-red-100 text-red-800 border-red-300';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-300';
+      case 'Done': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'InProgress': return 'bg-amber-50 text-amber-700 border-amber-200';
+      case 'Blocked': return 'bg-rose-50 text-rose-700 border-rose-200';
+      default: return 'bg-gray-50 text-gray-600 border-gray-200';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'Done':
-        return '✓';
-      case 'InProgress':
-        return '⟳';
-      case 'Blocked':
-        return '✕';
-      default:
-        return '○';
+      case 'Done': return '✓';
+      case 'InProgress': return '⟳';
+      case 'Blocked': return '✕';
+      default: return '○';
     }
   };
 
-  const getWfhStatusColor = (wfhDays: number, limit: number) => {
-    if (wfhDays > limit) return 'bg-red-50 border-red-200';
-    const percentage = (wfhDays / limit) * 100;
-    if (percentage >= 90) return 'bg-orange-50 border-orange-200';
-    if (percentage >= 75) return 'bg-yellow-50 border-yellow-200';
-    return 'bg-green-50 border-green-200';
-  };
-
-  const getWfhStatusTextColor = (wfhDays: number, limit: number) => {
-    if (wfhDays > limit) return 'text-red-700';
-    const percentage = (wfhDays / limit) * 100;
-    if (percentage >= 90) return 'text-orange-700';
-    if (percentage >= 75) return 'text-yellow-700';
-    return 'text-green-700';
-  };
-  
   const getWfhProgressColor = (wfhDays: number, limit: number) => {
-    if (wfhDays > limit) return 'bg-red-500';
+    if (wfhDays > limit) return 'bg-gradient-to-r from-red-500 to-red-600';
     const percentage = (wfhDays / limit) * 100;
-    if (percentage >= 90) return 'bg-orange-500';
-    if (percentage >= 75) return 'bg-yellow-500';
-    return 'bg-green-500';
+    if (percentage >= 90) return 'bg-gradient-to-r from-orange-400 to-orange-500';
+    if (percentage >= 75) return 'bg-gradient-to-r from-yellow-400 to-yellow-500';
+    return 'bg-gradient-to-r from-emerald-400 to-emerald-500';
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4">
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600"></div>
-          </div>
-          <p className="text-gray-700 font-semibold">Loading activity report...</p>
-        </div>
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="w-16 h-16 border-4 border-gray-100 border-t-purple-600 rounded-full animate-spin mb-6"></div>
+        <p className="text-gray-500 font-bold text-lg">Loading activity report...</p>
       </div>
     );
   }
 
   if (!report) {
     return (
-      <div className="text-center py-12">
-        <h1 className="text-2xl font-bold text-red-600">Report Not Found</h1>
-        <p className="text-gray-600 mt-2">Unable to load the activity report</p>
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <h2 className="text-2xl font-black text-gray-900 mb-2">Report Not Found</h2>
+        <button onClick={() => window.location.href = '/reports'} className="text-purple-600 font-bold hover:underline">Go Back</button>
       </div>
     );
   }
@@ -237,371 +209,219 @@ export default function ActivityReportPage() {
   });
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-indigo-700 to-indigo-900 rounded-xl shadow-lg p-8 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <span>📊</span> Activity & Attendance Report
-            </h1>
-            <p className="text-indigo-100 mt-2">
-              Team: <strong>{report.team.name}</strong> | Period: <strong>{getCurrentMonthLabel()}</strong> ({startDate} to {endDate}) | WFH Limit: <strong>{report.team.wfhLimitPerMonth} days/month</strong>
-            </p>
-          </div>
-          <Link
-            href="/reports"
-            className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors font-semibold"
-          >
-            ← Back
+    <div className="min-h-screen bg-gray-50/50 p-6 lg:p-10 font-sans">
+      <div className="max-w-7xl mx-auto space-y-8">
+
+        {/* Navigation & Header */}
+        <div className="space-y-6">
+          <Link href="/reports" className="inline-flex items-center gap-2 text-gray-400 hover:text-gray-900 font-bold transition-colors">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+            Back to Reports
           </Link>
-        </div>
-      </div>
 
-      {/* Period/Month Selector */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="space-y-4">
-          {/* Month Selector */}
-          <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-4">Select Report Period</h3>
-            <div className="flex items-center justify-center gap-4">
-              <button
-                onClick={goToPreviousMonth}
-                className="px-4 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-800 rounded-lg transition-colors font-semibold"
-              >
-                ← Previous
-              </button>
-              
-              <div className="flex gap-4 items-center">
-                <select
-                  value={selectedMonth}
-                  onChange={(e) => setMonthPeriod(parseInt(e.target.value), selectedYear)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-semibold"
-                >
-                  {months.map((month, index) => (
-                    <option key={index} value={index}>{month}</option>
-                  ))}
-                </select>
-                
-                <select
-                  value={selectedYear}
-                  onChange={(e) => setMonthPeriod(selectedMonth, parseInt(e.target.value))}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-semibold"
-                >
-                  {[2024, 2025, 2026, 2027].map((year) => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
+          <div className="bg-white rounded-3xl shadow-xl shadow-gray-100/50 border border-gray-100 p-8">
+            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+              <div>
+                <h1 className="text-4xl font-black text-gray-900 mb-2 tracking-tight">Activity Report</h1>
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-gray-500 font-medium">
+                  <span className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                    {report.team.name}
+                  </span>
+                  <span className="flex items-center gap-2 text-purple-600 bg-purple-50 px-3 py-1 rounded-lg">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    {getCurrentMonthLabel()}
+                  </span>
+                </div>
               </div>
-              
-              <button
-                onClick={goToNextMonth}
-                className="px-4 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-800 rounded-lg transition-colors font-semibold"
-              >
-                Next →
-              </button>
-            </div>
-          </div>
 
-          {/* Custom Date Range */}
-          <div className="pt-4 border-t border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4">Or Select Custom Date Range</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase">Start Date</label>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase">End Date</label>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div className="flex items-end gap-2">
-                <button
-                  onClick={() => {
-                    const now = new Date();
-                    setMonthPeriod(now.getMonth(), now.getFullYear());
-                  }}
-                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-semibold"
-                >
-                  Reset to Current Month
+              {/* Compact Controls */}
+              <div className="flex gap-3 bg-gray-50 p-2 rounded-2xl">
+                <button onClick={goToPreviousMonth} className="px-4 py-2 hover:bg-white hover:shadow-sm rounded-xl transition-all font-bold text-gray-500 hover:text-gray-900">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                <div className="flex gap-2">
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => setMonthPeriod(parseInt(e.target.value), selectedYear)}
+                    className="bg-transparent font-bold text-gray-900 outline-none cursor-pointer"
+                  >
+                    {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                  </select>
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setMonthPeriod(selectedMonth, parseInt(e.target.value))}
+                    className="bg-transparent font-bold text-gray-900 outline-none cursor-pointer"
+                  >
+                    {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+                <button onClick={goToNextMonth} className="px-4 py-2 hover:bg-white hover:shadow-sm rounded-xl transition-all font-bold text-gray-500 hover:text-gray-900">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                 </button>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg shadow p-6 border border-indigo-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-indigo-700 font-medium">Total Members</div>
-              <div className="text-3xl font-bold text-indigo-600 mt-1">{report.summary.totalMembers}</div>
+        {/* Summary Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[
+            { label: 'Total Members', value: report.summary.totalMembers, icon: '👥', color: 'blue' },
+            { label: 'Total Activities', value: report.summary.totalActivities, icon: '📋', color: 'indigo' },
+            { label: 'WFH Days Used', value: report.summary.totalWfhDays, icon: '🏠', color: 'purple' },
+            { label: 'Avg Completion', value: `${report.summary.averageCompletionRate}%`, icon: '📈', color: 'emerald' },
+          ].map((metric, i) => (
+            <div key={i} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-lg shadow-gray-100/50">
+              <div className="flex justify-between items-start mb-4">
+                <span className="text-4xl">{metric.icon}</span>
+              </div>
+              <div className="text-3xl font-black text-gray-900 mb-1">{metric.value}</div>
+              <div className="text-sm font-bold text-gray-400 uppercase tracking-wider">{metric.label}</div>
             </div>
-            <div className="text-3xl">👥</div>
-          </div>
+          ))}
         </div>
-        <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg shadow p-6 border border-amber-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-amber-700 font-medium">Total Activities</div>
-              <div className="text-3xl font-bold text-amber-600 mt-1">{report.summary.totalActivities}</div>
-            </div>
-            <div className="text-3xl">📋</div>
-          </div>
-        </div>
-        <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg shadow p-6 border border-slate-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-slate-700 font-medium">Total WFH Days Used</div>
-              <div className="text-3xl font-bold text-slate-600 mt-1">{report.summary.totalWfhDays}</div>
-            </div>
-            <div className="text-3xl">🏠</div>
-          </div>
-        </div>
-        <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg shadow p-6 border border-indigo-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-indigo-700 font-medium">Team WFH Quota</div>
-              <div className="text-3xl font-bold text-indigo-600 mt-1">{report.team.wfhLimitPerMonth}</div>
-              <div className="text-xs text-indigo-700 mt-1">days/member/month</div>
-            </div>
-            <div className="text-3xl">📅</div>
-          </div>
-        </div>
-        <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg shadow p-6 border border-amber-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-amber-700 font-medium">Avg Completion</div>
-              <div className="text-3xl font-bold text-amber-600 mt-1">{report.summary.averageCompletionRate}%</div>
-            </div>
-            <div className="text-3xl">✓</div>
-          </div>
-        </div>
-      </div>
 
-      {/* Filter & Sort */}
-      <div className="bg-white rounded-lg shadow p-6 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Filters & Sorting */}
+        <div className="flex flex-col sm:flex-row gap-4">
           {report.members.length > 1 && (
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Filter by Member</label>
-              <select
-                value={filterMember}
-                onChange={(e) => setFilterMember(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">All Members</option>
-                {report.members.map((member) => (
-                  <option key={member.memberId} value={member.memberId}>
-                    {member.username} ({member.stats.totalActivities} activities)
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Sort by</label>
             <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={filterMember}
+              onChange={(e) => setFilterMember(e.target.value)}
+              className="px-6 py-3 bg-white border border-gray-200 rounded-xl font-bold text-gray-700 outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer shadow-sm"
             >
-              <option value="activities">Most Activities</option>
-              <option value="completion">Highest Completion Rate</option>
-              <option value="wfh">Most WFH Days</option>
+              <option value="">All Members</option>
+              {report.members.map(m => (
+                <option key={m.memberId} value={m.memberId}>{m.username}</option>
+              ))}
             </select>
-          </div>
+          )}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            className="px-6 py-3 bg-white border border-gray-200 rounded-xl font-bold text-gray-700 outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer shadow-sm"
+          >
+            <option value="activities">Sort: Most Activities</option>
+            <option value="completion">Sort: Highest Completion</option>
+            <option value="wfh">Sort: Most WFH Days</option>
+          </select>
         </div>
-      </div>
 
-      {/* Members List */}
-      <div className="space-y-4">
-        {sortedMembers.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <p className="text-gray-600 text-lg">No members found</p>
-          </div>
-        ) : (
-          sortedMembers.map((member) => (
-            <div key={member.memberId} className={`bg-white rounded-lg shadow overflow-hidden border-l-4 ${
-              member.stats.wfhDays > report.team.wfhLimitPerMonth ? 'border-red-500' : 'border-indigo-500'
-            }`}>
-              {/* Member Header */}
-              <button
-                onClick={() => toggleMemberExpand(member.memberId)}
-                className={`w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors ${
-                  getWfhStatusColor(member.stats.wfhDays, report.team.wfhLimitPerMonth)
-                }`}
-              >
-                <div className="flex items-center gap-4 flex-1 text-left">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-indigo-500 to-indigo-700 flex items-center justify-center text-white font-bold text-lg">
-                    {member.username.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-gray-800 text-lg">{member.username}</h3>
-                    <p className="text-sm text-gray-600">{member.email} {member.isLead && '• Team Lead 👔'}</p>
-                  </div>
-                </div>
-                
-                {/* Quick Stats */}
-                <div className="hidden lg:flex items-center gap-6 mr-4">
-                  <div className="text-center">
-                    <div className="text-xl font-bold text-indigo-600">{member.stats.totalActivities}</div>
-                    <div className="text-xs text-gray-600">Activities</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-xl font-bold text-amber-600">{member.stats.completedTasks}</div>
-                    <div className="text-xs text-gray-600">Completed</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-xl font-bold text-amber-600">{member.stats.completionRate}%</div>
-                    <div className="text-xs text-gray-600">Rate</div>
-                  </div>
-                  <div className={`text-center ${getWfhStatusTextColor(member.stats.wfhDays, report.team.wfhLimitPerMonth)}`}>
-                    <div className="text-xl font-bold">{member.stats.wfhDays}</div>
-                    <div className="text-xs">/ {report.team.wfhLimitPerMonth} WFH Days</div>
-                    {member.stats.wfhDays > report.team.wfhLimitPerMonth && (
-                      <div className="text-xs font-semibold text-red-600">⚠️ Exceeded</div>
-                    )}
-                  </div>
-                </div>
-
-                <svg
-                  className={`w-5 h-5 text-gray-600 transition-transform hidden md:block`}
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </button>
-
-              {/* Member Details */}
-              {expandedMembers.has(member.memberId) && (
-                <div className="border-t border-gray-200 px-6 py-6 bg-gray-50 space-y-6">
-                  {/* Stats Grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    <div className="bg-white rounded-lg p-4 shadow-sm">
-                      <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Activities</div>
-                      <div className="text-2xl font-bold text-indigo-600 mt-2">{member.stats.totalActivities}</div>
-                    </div>
-                    <div className="bg-white rounded-lg p-4 shadow-sm">
-                      <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Completed</div>
-                      <div className="text-2xl font-bold text-amber-600 mt-2">{member.stats.completedTasks}</div>
-                    </div>
-                    <div className="bg-white rounded-lg p-4 shadow-sm">
-                      <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide">In Progress</div>
-                      <div className="text-2xl font-bold text-yellow-600 mt-2">{member.stats.inProgressTasks}</div>
-                    </div>
-                    <div className="bg-white rounded-lg p-4 shadow-sm">
-                      <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Blocked</div>
-                      <div className="text-2xl font-bold text-red-600 mt-2">{member.stats.blockedTasks}</div>
-                    </div>
-                    <div className={`rounded-lg p-4 shadow-sm border-2 ${
-                      member.stats.wfhDays > report.team.wfhLimitPerMonth 
-                        ? 'bg-red-50 border-red-200' 
-                        : 'bg-white border-gray-200'
-                    }`}>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide">WFH Days</div>
-                        <div className={`text-xs font-bold px-2 py-1 rounded ${
-                          member.stats.wfhDays > report.team.wfhLimitPerMonth 
-                            ? 'bg-red-200 text-red-700' 
-                            : 'bg-gray-200 text-gray-700'
-                        }`}>
-                          {((member.stats.wfhDays / report.team.wfhLimitPerMonth) * 100).toFixed(0)}%
-                        </div>
-                      </div>
-                      <div className={`text-2xl font-bold mt-2 ${
-                        member.stats.wfhDays > report.team.wfhLimitPerMonth ? 'text-red-600' : 'text-purple-600'
-                      }`}>
-                        {member.stats.wfhDays} / {report.team.wfhLimitPerMonth}
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden mt-2">
-                        <div
-                          className={`h-full rounded-full transition-all ${getWfhProgressColor(member.stats.wfhDays, report.team.wfhLimitPerMonth)}`}
-                          style={{ width: `${Math.min((member.stats.wfhDays / report.team.wfhLimitPerMonth) * 100, 100)}%` }}
-                        />
-                      </div>
-                      {member.stats.wfhDays > report.team.wfhLimitPerMonth && (
-                        <div className="text-xs font-bold text-red-600 mt-2">
-                          ⚠️ +{member.stats.wfhDays - report.team.wfhLimitPerMonth} over limit
-                        </div>
-                      )}
-                      {member.stats.wfhDays > 0 && member.stats.wfhDays <= report.team.wfhLimitPerMonth && (
-                        <div className="text-xs font-semibold text-green-600 mt-2">
-                          ✓ {report.team.wfhLimitPerMonth - member.stats.wfhDays} days remaining
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Completion Rate Bar */}
-                  <div className="bg-white rounded-lg p-4 shadow-sm">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-semibold text-gray-700">Completion Rate</span>
-                      <span className="text-lg font-bold text-orange-600">{member.stats.completionRate}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                      <div
-                        className="bg-gradient-to-r from-amber-400 to-amber-600 h-full rounded-full transition-all"
-                        style={{ width: `${member.stats.completionRate}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Recent Activities */}
-                  <div>
-                    <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                      <span>📋</span> Recent Activities ({member.activities.length} total)
-                    </h4>
-                    {member.activities.length > 0 ? (
-                      <div className="space-y-2 max-h-96 overflow-y-auto">
-                        {member.activities.slice(0, 15).map((activity) => (
-                          <div key={activity.id} className={`p-3 rounded-lg border-l-4 flex items-start gap-3 ${getStatusColor(activity.status)}`}>
-                            <span className="text-lg font-bold mt-0.5">{getStatusIcon(activity.status)}</span>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium break-words">{activity.subject}</p>
-                              <p className="text-xs mt-1 opacity-75">
-                                {new Date(activity.date).toLocaleDateString('en-US', { 
-                                  weekday: 'short',
-                                  year: 'numeric',
-                                  month: 'short',
-                                  day: 'numeric'
-                                })}
-                                {activity.isWfh && ' • 🏠 Work From Home'}
-                                {activity.project && ` • 📦 ${activity.project}`}
-                                {activity.time && ` • ${activity.time}`}
-                              </p>
-                            </div>
-                            <span className="text-xs font-bold px-2 py-1 rounded whitespace-nowrap">{activity.status}</span>
-                          </div>
-                        ))}
-                        {member.activities.length > 15 && (
-                          <p className="text-xs text-gray-600 text-center py-3 font-semibold">
-                            ... and {member.activities.length - 15} more activities
-                          </p>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="text-gray-600 text-center py-6 bg-white rounded-lg">No activities found</p>
-                    )}
-                  </div>
-                </div>
-              )}
+        {/* Team Members List */}
+        <div className="space-y-6">
+          {sortedMembers.length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 text-center border-2 border-dashed border-gray-200">
+              <p className="text-gray-400 font-bold text-lg">No members found matching your criteria</p>
             </div>
-          ))
-        )}
+          ) : (
+            sortedMembers.map((member) => (
+              <div key={member.memberId} className="bg-white rounded-3xl shadow-xl shadow-gray-100/50 border border-gray-100 overflow-hidden transition-transform hover:scale-[1.01] duration-300">
+                <div
+                  onClick={() => toggleMemberExpand(member.memberId)}
+                  className="p-6 lg:p-8 cursor-pointer hover:bg-gray-50/50 transition-colors"
+                >
+                  <div className="flex flex-col lg:flex-row lg:items-center gap-8">
+                    {/* Member Profile */}
+                    <div className="flex items-center gap-5 min-w-[240px]">
+                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-2xl shadow-lg shadow-indigo-500/20">
+                        {member.username.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-xl text-gray-900">{member.username}</h3>
+                        {member.isLead && <span className="inline-block mt-1 bg-purple-100 text-purple-700 text-[10px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider">Team Lead</span>}
+                      </div>
+                    </div>
+
+                    {/* Quick Stats Grid */}
+                    <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-6">
+                      <div>
+                        <div className="text-2xl font-black text-gray-900">{member.stats.totalActivities}</div>
+                        <div className="text-xs font-bold text-gray-400 uppercase">Total Activities</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-black text-gray-900">{member.stats.completionRate}%</div>
+                        <div className="text-xs font-bold text-gray-400 uppercase">Completion Rate</div>
+                      </div>
+                      <div className="col-span-2">
+                        <div className="flex justify-between items-end mb-2">
+                          <span className="text-xs font-bold text-gray-400 uppercase">WFH Usage</span>
+                          <span className={`text-xs font-black ${member.stats.wfhDays > report.team.wfhLimitPerMonth ? 'text-red-500' : 'text-gray-900'}`}>
+                            {member.stats.wfhDays} / {report.team.wfhLimitPerMonth} Days
+                          </span>
+                        </div>
+                        <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${getWfhProgressColor(member.stats.wfhDays, report.team.wfhLimitPerMonth)}`}
+                            style={{ width: `${Math.min((member.stats.wfhDays / report.team.wfhLimitPerMonth) * 100, 100)}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="hidden lg:block">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-transform duration-300 ${expandedMembers.has(member.memberId) ? 'rotate-180 bg-gray-200' : 'bg-gray-100'}`}>
+                        <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Detailed View */}
+                {expandedMembers.has(member.memberId) && (
+                  <div className="border-t border-gray-100 bg-gray-50/50 p-6 lg:p-8 animate-in slide-in-from-top-4 duration-300">
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      {/* Breakdown Stats */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                          <div className="text-3xl font-black text-emerald-500 mb-1">{member.stats.completedTasks}</div>
+                          <div className="text-xs font-bold text-gray-400 uppercase">Completed</div>
+                        </div>
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                          <div className="text-3xl font-black text-amber-500 mb-1">{member.stats.inProgressTasks}</div>
+                          <div className="text-xs font-bold text-gray-400 uppercase">In Progress</div>
+                        </div>
+                      </div>
+
+                      {/* Activity Feed */}
+                      <div>
+                        <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                          Recent Activity
+                          <span className="bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full text-xs">{member.activities.length}</span>
+                        </h4>
+                        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                          {member.activities.length > 0 ? (
+                            member.activities.map((activity) => (
+                              <div key={activity.id} className="bg-white p-4 rounded-2xl border border-gray-100 relative group">
+                                <div className="flex items-start justify-between gap-4">
+                                  <div>
+                                    <p className="font-bold text-gray-800 text-sm mb-1">{activity.subject}</p>
+                                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 font-medium">
+                                      <span>{new Date(activity.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                      {activity.isWfh && <span className="text-purple-600 bg-purple-50 px-2 py-0.5 rounded">Home</span>}
+                                      {activity.project && <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{activity.project}</span>}
+                                    </div>
+                                  </div>
+                                  <span className={`px-2 py-1 rounded text-xs font-black uppercase ${getStatusColor(activity.status)}`}>
+                                    {activity.status}
+                                  </span>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-gray-400 font-bold text-center py-4">No recent activities logged.</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
       </div>
     </div>
   );

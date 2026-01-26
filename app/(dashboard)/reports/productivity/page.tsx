@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuthStore, useNotificationStore } from '@/lib/store';
-import { reportingAPI, api } from '@/lib/api';
+import { reportingAPI } from '@/lib/api';
 
 interface ProductivityMetrics {
   option1: {
@@ -90,14 +90,13 @@ export default function ProductivityReportPage() {
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const ITEMS_PER_PAGE = 10; // Show 10 team members per page
+  const ITEMS_PER_PAGE = 10;
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
-  // Helper function to format date to YYYY-MM-DD in local time (no timezone conversion)
   const formatLocalDate = (date: Date): string => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -108,34 +107,22 @@ export default function ProductivityReportPage() {
   const setMonthPeriod = (month: number, year: number) => {
     setSelectedMonth(month);
     setSelectedYear(year);
-
-    // First day of the month
     const firstDay = new Date(year, month, 1);
-    // Last day of the month (day 0 of next month)
     const lastDay = new Date(year, month + 1, 0);
-
-    // Format dates in local time to avoid timezone issues
     const startDateStr = formatLocalDate(firstDay);
     const endDateStr = formatLocalDate(lastDay);
-
     setStartDate(startDateStr);
     setEndDate(endDateStr);
   };
 
   const goToPreviousMonth = () => {
-    if (selectedMonth === 0) {
-      setMonthPeriod(11, selectedYear - 1);
-    } else {
-      setMonthPeriod(selectedMonth - 1, selectedYear);
-    }
+    if (selectedMonth === 0) setMonthPeriod(11, selectedYear - 1);
+    else setMonthPeriod(selectedMonth - 1, selectedYear);
   };
 
   const goToNextMonth = () => {
-    if (selectedMonth === 11) {
-      setMonthPeriod(0, selectedYear + 1);
-    } else {
-      setMonthPeriod(selectedMonth + 1, selectedYear);
-    }
+    if (selectedMonth === 11) setMonthPeriod(0, selectedYear + 1);
+    else setMonthPeriod(selectedMonth + 1, selectedYear);
   };
 
   const getCurrentMonthLabel = () => {
@@ -144,7 +131,6 @@ export default function ProductivityReportPage() {
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };
 
-  // Initialize with current month dates
   useEffect(() => {
     const now = new Date();
     setMonthPeriod(now.getMonth(), now.getFullYear());
@@ -159,12 +145,7 @@ export default function ProductivityReportPage() {
 
     setLoading(true);
     try {
-      const response = await reportingAPI.getProductivityReport(teamId, {
-        startDate,
-        endDate,
-      });
-
-      // Transform response data to calculate top performers
+      const response = await reportingAPI.getProductivityReport(teamId, { startDate, endDate });
       const reportData = response.data;
       const members = (reportData.memberProductivity || reportData.members || []).map((m: any) => {
         const stats = m.stats || {
@@ -175,7 +156,6 @@ export default function ProductivityReportPage() {
           completionRate: m.completionRate || 0,
         };
 
-        // Use final score if available, otherwise fall back to option1
         const primaryScore = m.productivityMetrics?.finalScore?.score ||
           m.productivityMetrics?.option1?.score ||
           parseFloat(m.completionRate || stats?.completionRate || '0');
@@ -203,6 +183,7 @@ export default function ProductivityReportPage() {
           productivityScore: primaryScore,
         };
       });
+
       const topPerformers = [...members]
         .sort((a: any, b: any) => b.productivityScore - a.productivityScore)
         .slice(0, 3);
@@ -212,7 +193,7 @@ export default function ProductivityReportPage() {
         topPerformers,
         members: members
       });
-      setCurrentPage(1); // Reset to first page on new report
+      setCurrentPage(1);
     } catch (error) {
       console.error('Failed to load productivity report:', error);
       addNotification({
@@ -226,626 +207,267 @@ export default function ProductivityReportPage() {
   }, [teamId, startDate, endDate, addNotification]);
 
   const getProductivityColor = useCallback((score: number) => {
-    // Elegant color scheme with indigo primary, amber secondary
-    if (score >= 80) return 'text-indigo-700';
+    if (score >= 80) return 'text-violet-600';
     if (score >= 60) return 'text-indigo-600';
     if (score >= 40) return 'text-amber-600';
-    if (score >= 20) return 'text-amber-500';
-    return 'text-slate-600';
+    if (score >= 20) return 'text-orange-600';
+    return 'text-gray-600';
   }, []);
 
-  const getProductivityBg = useCallback((score: number) => {
-    // Subtle backgrounds with color-coded hints
-    if (score >= 80) return 'bg-indigo-50 border-indigo-200';
-    if (score >= 60) return 'bg-indigo-50 border-indigo-100';
-    if (score >= 40) return 'bg-amber-50 border-amber-100';
-    if (score >= 20) return 'bg-amber-50 border-amber-100';
-    return 'bg-white border-slate-100';
-  }, []);
-
-  // Memoize the scoring information to prevent recomputation
-  const scoringInfo = useMemo(() => ({
-    option1: {
-      label: 'Combined Completion Rate (Redmine Focus)',
-      formula: 'If no Daylog: 100% Redmine Rate | If Daylog exists: (75% × Redmine Rate) + (25% × Daylog Rate)',
-      description: 'Prioritizes Redmine work. If no Daylog tasks, trusts Redmine completely. If Daylog exists, gives Redmine 75% weight and Daylog 25% weight.',
-    },
-    option2: {
-      label: 'Weighted Performance Score (Balanced)',
-      formula: 'If no Daylog: 100% Redmine Rate | If Daylog exists: (50% × Redmine Rate) + (50% × Daylog Rate)',
-      description: 'Balanced view combining Redmine (50%) and Daylog (50%) completion rates equally when both exist.',
-    },
-    option3: {
-      label: 'Time-based Efficiency',
-      formula: 'Tasks Completed / Working Days × 25 (where 4 tasks/day = 100 points)',
-      description: 'Measures task completion velocity based on time spent. Calculated as (Completed Tasks / Total Working Days) normalized to 0-100, assuming 4 tasks per working day equals perfect efficiency',
-    },
-    final: {
-      label: 'Final Productivity Score',
-      formula: 'Same as Option 1/2: If no Daylog: 100% Redmine | If Daylog: (50% Redmine) + (50% Daylog)',
-      description: 'Uses the combined completion rate as the primary score. Defaults to Redmine-only when no Daylog tasks, otherwise balances both systems equally',
-    },
-  }), []);
+  const getPerformanceBadge = (score: number) => {
+    if (score >= 80) return <span className="px-3 py-1 bg-violet-100 text-violet-700 rounded-full text-xs font-black uppercase">Excellent</span>;
+    if (score >= 60) return <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-black uppercase">Good</span>;
+    if (score >= 40) return <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-black uppercase">Fair</span>;
+    return <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-black uppercase">Needs Imp.</span>;
+  };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4">
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600"></div>
-          </div>
-          <p className="text-slate-700 font-semibold">Loading productivity report...</p>
-        </div>
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="w-16 h-16 border-4 border-gray-100 border-t-amber-500 rounded-full animate-spin mb-6"></div>
+        <p className="text-gray-500 font-bold text-lg">Calculating productivity metrics...</p>
       </div>
     );
   }
 
   if (!report) {
     return (
-      <div className="text-center py-12">
-        <h1 className="text-2xl font-bold text-red-600">Report Not Found</h1>
-        <p className="text-slate-600 mt-2">Unable to load the productivity report</p>
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <h2 className="text-2xl font-black text-gray-900 mb-2">Report Not Found</h2>
+        <button onClick={() => window.location.href = '/reports'} className="text-amber-600 font-bold hover:underline">Go Back</button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="bg-gradient-to-br from-indigo-700 to-indigo-900 rounded-xl shadow-lg p-8 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">
-              Productivity & Performance Report
-            </h1>
-            <p className="text-slate-300 mt-2">
-              Team: <strong>{report.team.name}</strong> | Period: <strong>{getCurrentMonthLabel()}</strong> ({startDate} to {endDate})
-            </p>
-          </div>
-          <Link
-            href="/reports"
-            className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors font-semibold"
-          >
-            ← Back
+    <div className="min-h-screen bg-gray-50/50 p-6 lg:p-10 font-sans">
+      <div className="max-w-7xl mx-auto space-y-8">
+
+        {/* Navigation & Header */}
+        <div className="space-y-6">
+          <Link href="/reports" className="inline-flex items-center gap-2 text-gray-400 hover:text-gray-900 font-bold transition-colors">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+            Back to Reports
           </Link>
-        </div>
-      </div>
 
-      {/* Period/Month Selector */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="space-y-4">
-          {/* Month Selector */}
-          <div>
-            <h3 className="text-sm font-semibold text-slate-700 mb-4">Select Report Period</h3>
-            <div className="flex items-center justify-center gap-4">
-              <button
-                onClick={goToPreviousMonth}
-                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg transition-colors font-semibold"
-              >
-                ← Previous
-              </button>
-
-              <div className="flex gap-4 items-center">
-                <select
-                  value={selectedMonth}
-                  onChange={(e) => setMonthPeriod(parseInt(e.target.value), selectedYear)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-semibold"
-                >
-                  {months.map((month, index) => (
-                    <option key={index} value={index}>{month}</option>
-                  ))}
-                </select>
-
-                <select
-                  value={selectedYear}
-                  onChange={(e) => setMonthPeriod(selectedMonth, parseInt(e.target.value))}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-semibold"
-                >
-                  {[2024, 2025, 2026, 2027].map((year) => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
-              </div>
-
-              <button
-                onClick={goToNextMonth}
-                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg transition-colors font-semibold"
-              >
-                Next →
-              </button>
-            </div>
-          </div>
-
-          {/* Custom Date Range */}
-          <div className="pt-4 border-t border-gray-200">
-            <h3 className="text-sm font-semibold text-slate-700 mb-4">Or Select Custom Date Range</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white rounded-3xl shadow-xl shadow-gray-100/50 border border-gray-100 p-8">
+            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase">Start Date</label>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+                <h1 className="text-4xl font-black text-gray-900 mb-2 tracking-tight">Productivity Report</h1>
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-gray-500 font-medium">
+                  <span className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                    {report.team.name}
+                  </span>
+                  <span className="flex items-center gap-2 text-amber-600 bg-amber-50 px-3 py-1 rounded-lg">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    {getCurrentMonthLabel()}
+                  </span>
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase">End Date</label>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div className="flex items-end gap-2">
-                <button
-                  onClick={() => {
-                    const now = new Date();
-                    setMonthPeriod(now.getMonth(), now.getFullYear());
-                  }}
-                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-semibold"
-                >
-                  Reset to Current Month
+
+              {/* Compact Controls */}
+              <div className="flex gap-3 bg-gray-50 p-2 rounded-2xl">
+                <button onClick={goToPreviousMonth} className="px-4 py-2 hover:bg-white hover:shadow-sm rounded-xl transition-all font-bold text-gray-500 hover:text-gray-900">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                <div className="flex gap-2">
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => setMonthPeriod(parseInt(e.target.value), selectedYear)}
+                    className="bg-transparent font-bold text-gray-900 outline-none cursor-pointer"
+                  >
+                    {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                  </select>
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setMonthPeriod(selectedMonth, parseInt(e.target.value))}
+                    className="bg-transparent font-bold text-gray-900 outline-none cursor-pointer"
+                  >
+                    {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+                <button onClick={goToNextMonth} className="px-4 py-2 hover:bg-white hover:shadow-sm rounded-xl transition-all font-bold text-gray-500 hover:text-gray-900">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                 </button>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Top Performers */}
-      {(report.topPerformers && report.topPerformers.length > 0) && (
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
-            Top Performers
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Top Performers Section */}
+        {(report.topPerformers && report.topPerformers.length > 0) && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
             {report.topPerformers.map((member, idx) => (
-              <div key={member.memberId} className={`rounded-lg shadow border overflow-hidden transition-shadow hover:shadow-md ${idx === 0 ? 'bg-white border-slate-200 border-t-4 border-t-slate-800' :
-                idx === 1 ? 'bg-white border-slate-200' :
-                  'bg-white border-slate-200'
+              <div key={member.memberId} className={`relative bg-white rounded-3xl p-8 border hover:-translate-y-1 transition-transform duration-300 ${idx === 0
+                ? 'shadow-2xl shadow-amber-500/20 border-amber-200 z-10 scale-105'
+                : 'shadow-xl shadow-gray-100/50 border-gray-100'
                 }`}>
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <div className="text-sm font-semibold text-slate-600 mb-1">#{idx + 1}</div>
-                      <h3 className="text-lg font-bold text-slate-900">{member.username}</h3>
-                    </div>
-                    <div></div>
+                {idx === 0 && (
+                  <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-400 to-orange-500 text-white px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest shadow-lg shadow-amber-500/30">
+                    Top Performer
                   </div>
-                  <div className={`text-4xl font-bold mb-2 ${getProductivityColor(member.productivityScore)}`}>
+                )}
+                <div className="flex flex-col items-center text-center">
+                  <div className="mb-4 relative">
+                    <div className={`w-20 h-20 rounded-full flex items-center justify-center text-white font-black text-3xl shadow-lg ${idx === 0 ? 'bg-gradient-to-br from-amber-400 to-orange-500' :
+                      idx === 1 ? 'bg-gradient-to-br from-slate-400 to-slate-500' :
+                        'bg-gradient-to-br from-orange-300 to-orange-400'
+                      }`}>
+                      {member.username.charAt(0).toUpperCase()}
+                    </div>
+                    <div className={`absolute -bottom-2 -right-2 w-8 h-8 rounded-full border-4 border-white flex items-center justify-center text-sm font-bold ${idx === 0 ? 'bg-amber-400 text-white' : 'bg-gray-200 text-gray-600'
+                      }`}>
+                      #{idx + 1}
+                    </div>
+                  </div>
+
+                  <h3 className="text-xl font-bold text-gray-900 mb-1">{member.username}</h3>
+                  <div className={`text-4xl font-black mb-4 ${getProductivityColor(member.productivityScore)}`}>
                     {member.productivityScore.toFixed(1)}
                   </div>
-                  <p className="text-sm text-slate-600 font-medium mb-4">Productivity Score</p>
-                  <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-200">
+
+                  <div className="w-full grid grid-cols-2 gap-2 text-left bg-gray-50 rounded-xl p-3">
                     <div>
-                      <div className="text-lg font-bold text-slate-900">{member.metrics.completedTasks}</div>
-                      <div className="text-xs text-slate-600">Completed</div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase">Tasks</p>
+                      <p className="font-bold text-gray-900">{member.metrics.completedTasks}</p>
                     </div>
                     <div>
-                      <div className="text-lg font-bold text-slate-900">{Math.min(100, member.metrics.completionRate).toFixed(1)}%</div>
-                      <div className="text-xs text-slate-600">Completion</div>
-                    </div>
-                    <div>
-                      <div className="text-lg font-bold text-slate-900">{member.metrics.totalTasks}</div>
-                      <div className="text-xs text-slate-600">Total Tasks</div>
-                    </div>
-                    <div>
-                      <div className="text-lg font-bold text-slate-900">{member.metrics.blockedTasks}</div>
-                      <div className="text-xs text-slate-600">Blocked</div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase">Rate</p>
+                      <p className="font-bold text-gray-900">{Math.min(100, member.metrics.completionRate).toFixed(1)}%</p>
                     </div>
                   </div>
                 </div>
               </div>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* All Members Productivity with Pagination */}
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900 mb-4">
-          Team Productivity
-        </h2>
-
-        {/* Pagination Info and Controls */}
-        {report.members && report.members.length > ITEMS_PER_PAGE && (
-          <div className="mb-4 flex items-center justify-between">
-            <div className="text-sm text-slate-600">
-              Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, report.members.length)} of {report.members.length} team members
-            </div>
-          </div>
         )}
 
-        <div className="grid grid-cols-1 gap-4">
-          {report.members
-            .sort((a, b) => b.productivityScore - a.productivityScore)
-            .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
-            .map((member) => (
-              <div
-                key={member.memberId}
-                className={`rounded-lg shadow border overflow-hidden transition-all hover:shadow-md ${member.productivityScore >= 80 ? 'bg-slate-50 border-slate-200' :
-                  'bg-white border-slate-100'
-                  }`}
-              >
-                <div className="p-6">
-                  {/* Header with member info and score */}
-                  <div className="flex items-center justify-between gap-4 mb-4">
-                    <div className="flex items-center gap-4 flex-1">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shadow bg-gradient-to-br from-indigo-600 to-indigo-700`}>
+        {/* Team Productivity List */}
+        <div>
+          <div className="flex justify-between items-center mb-6 px-2">
+            <h2 className="text-xl font-black text-gray-900">Team Performance</h2>
+            <div className="text-sm font-medium text-gray-500">
+              Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, report.members.length)} of {report.members.length} members
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            {report.members
+              .sort((a, b) => b.productivityScore - a.productivityScore)
+              .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+              .map((member) => (
+                <div key={member.memberId} className="bg-white rounded-3xl shadow-xl shadow-gray-100/50 border border-gray-100 overflow-hidden p-6 lg:p-8 hover:-translate-y-1 transition-all duration-300">
+                  <div className="flex flex-col lg:flex-row gap-8">
+                    {/* Member Basic Info */}
+                    <div className="flex items-start gap-4 lg:w-1/4">
+                      <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-600 font-black text-lg">
                         {member.username.charAt(0).toUpperCase()}
                       </div>
-                      <div className="flex-1">
-                        <h3 className="font-bold text-lg text-slate-900">{member.username}</h3>
-                        <p className="text-sm text-slate-600">{member.role}</p>
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className={`text-3xl font-bold ${getProductivityColor(member.productivityScore)}`}>
-                        {Math.min(100, member.productivityScore).toFixed(1)}
-                      </div>
-                      <div className="text-xs text-gray-600 font-medium">Score</div>
-                    </div>
-                  </div>
-
-                  {/* Completion Progress Bar */}
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-semibold text-slate-700">Task Completion Rate</span>
-                      <span className="text-sm font-bold text-slate-900">{Math.min(100, member.metrics.completionRate).toFixed(1)}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full transition-all bg-indigo-700`}
-                        style={{ width: `${Math.min(100, member.metrics.completionRate)}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  {/* Key Metrics Grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
-                    <div className="bg-white rounded-lg p-3 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                      <div className="text-2xl font-bold text-slate-900">{member.metrics.totalTasks}</div>
-                      <div className="text-xs text-slate-600 font-medium">Total</div>
-                    </div>
-                    <div className="bg-white rounded-lg p-3 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                      <div className="text-2xl font-bold text-slate-900">{member.metrics.completedTasks}</div>
-                      <div className="text-xs text-slate-600 font-medium">Completed</div>
-                    </div>
-                    <div className="bg-white rounded-lg p-3 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                      <div className="text-2xl font-bold text-slate-900">{member.redmineStats.inProgressIssues}</div>
-                      <div className="text-xs text-slate-600 font-medium">In Progress</div>
-                    </div>
-                    <div className="bg-white rounded-lg p-3 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                      <div className="text-2xl font-bold text-slate-900">{member.metrics.blockedTasks}</div>
-                      <div className="text-xs text-slate-600 font-medium">Blocked</div>
-                    </div>
-                    <div className="bg-white rounded-lg p-3 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                      <div className="text-2xl font-bold text-slate-900">{member.metrics.avgTasksPerDay}</div>
-                      <div className="text-xs text-slate-600 font-medium">Tasks/Day</div>
-                    </div>
-                  </div>
-
-                  {/* WFH Status */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 pt-4 border-t border-slate-100">
-                    <div>
-                      <div className="text-sm font-semibold text-slate-900 mb-1">WFH Status</div>
-                      <div className="flex items-baseline gap-2">
-                        <div className={`text-lg font-bold ${member.metrics.wfhDays > (report?.team.wfhLimitPerMonth || 3)
-                          ? 'text-red-600'
-                          : 'text-purple-600'
-                          }`}>
-                          {member.metrics.wfhDays} days
-                        </div>
-                        <div className="text-xs text-slate-500">
-                          / {report?.team.wfhLimitPerMonth || 3} limit
+                      <div>
+                        <h3 className="font-bold text-lg text-gray-900">{member.username}</h3>
+                        <p className="text-xs font-bold text-gray-400 uppercase mt-1">{member.role}</p>
+                        <div className="mt-2">
+                          {getPerformanceBadge(member.productivityScore)}
                         </div>
                       </div>
-                      {member.metrics.wfhDays > (report?.team.wfhLimitPerMonth || 3) && (
-                        <div className="text-xs text-red-600 font-semibold mt-1">
-                          Exceeded
-                        </div>
-                      )}
                     </div>
-                    <div>
-                      <div className="text-sm font-semibold text-slate-900 mb-1">Performance Status</div>
-                      <div className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${member.productivityScore >= 80 ? 'bg-green-200 text-green-800' :
-                        member.productivityScore >= 60 ? 'bg-blue-200 text-blue-800' :
-                          member.productivityScore >= 40 ? 'bg-yellow-200 text-yellow-800' :
-                            'bg-red-200 text-red-800'
-                        }`}>
-                        {member.productivityScore >= 80 ? 'Excellent' :
-                          member.productivityScore >= 60 ? 'Good' :
-                            member.productivityScore >= 40 ? 'Fair' :
-                              'Needs Attention'}
+
+                    {/* Scores & Stats */}
+                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                      {/* Score */}
+                      <div className="bg-violet-50 rounded-2xl p-4 border border-violet-100">
+                        <p className="text-xs font-bold text-violet-400 uppercase mb-1">Productivity Score</p>
+                        <p className="text-3xl font-black text-violet-600">{member.productivityScore.toFixed(1)}</p>
+                      </div>
+
+                      {/* Completion */}
+                      <div>
+                        <div className="flex justify-between items-end mb-2">
+                          <p className="text-xs font-bold text-gray-400 uppercase">Completion Rate</p>
+                          <p className="text-sm font-black text-gray-900">{Math.min(100, member.metrics.completionRate).toFixed(1)}%</p>
+                        </div>
+                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-gray-900 rounded-full" style={{ width: `${Math.min(100, member.metrics.completionRate)}%` }}></div>
+                        </div>
+                        <div className="flex gap-3 mt-3 text-xs font-medium text-gray-500">
+                          <span>{member.metrics.completedTasks} Done</span>
+                          <span>•</span>
+                          <span>{member.metrics.totalTasks} Total</span>
+                        </div>
+                      </div>
+
+                      {/* Task Sources */}
+                      <div className="col-span-1 md:col-span-2 grid grid-cols-2 gap-4">
+                        <div className="bg-white border border-gray-200 p-3 rounded-xl">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Redmine (Office)</p>
+                          <div className="flex justify-between items-end">
+                            <span className="font-bold text-gray-900">{member.redmineStats.closedIssues}/{member.redmineStats.assignedIssues}</span>
+                            <span className="text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">Issues</span>
+                          </div>
+                        </div>
+                        <div className="bg-white border border-gray-200 p-3 rounded-xl">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Daylog (WFH)</p>
+                          <div className="flex justify-between items-end">
+                            <span className="font-bold text-gray-900">{member.dbTasks.completed}/{member.dbTasks.total}</span>
+                            <span className="text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">Tasks</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Three Productivity Options */}
+                  {/* Expanded Metrics / Options (If available) */}
                   {member.productivityMetrics && (
-                    <div className="pt-4 border-t border-gray-200">
-                      <h4 className="font-semibold text-slate-900 mb-4">
-                        Productivity Reporting Options
+                    <div className="mt-8 pt-6 border-t border-gray-100">
+                      <h4 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 bg-gray-900 rounded-full"></span>
+                        Detailed Scoring Breakdown
                       </h4>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        {/* Option 1: Weighted Combined Completion Rate */}
-                        <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-200 shadow-sm hover:shadow-md transition-shadow">
-                          <div className="mb-3">
-                            <h5 className="font-bold text-indigo-900 text-sm">{member.productivityMetrics.option1.label}</h5>
-                          </div>
-                          <div className="text-3xl font-bold text-indigo-700 mb-2">
-                            {member.productivityMetrics.option1.score.toFixed(1)}%
-                          </div>
-                          <p className="text-xs text-slate-600 mb-3">
-                            Weighted: Redmine 75% + Daylog 25%
-                          </p>
-                          <div className="text-xs bg-white rounded p-2 text-slate-600 border border-indigo-100">
-                            <span className="font-semibold">Formula:</span> (Redmine Rate × 0.75) + (Daylog Rate × 0.25)
-                          </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                          <p className="text-xs font-bold text-gray-400 uppercase mb-2">Option 1: Weighted</p>
+                          <p className="text-xl font-black text-gray-900">{member.productivityMetrics.option1.score.toFixed(1)}%</p>
+                          <p className="text-xs text-gray-500 mt-2 leading-relaxed">Redmine (75%) + Daylog (25%). Best for office-first workflows.</p>
                         </div>
-
-                        {/* Option 2: Weighted Performance with Redmine Focus */}
-                        <div className="bg-amber-50 rounded-lg p-4 border border-amber-200 shadow-sm hover:shadow-md transition-shadow">
-                          <div className="mb-3">
-                            <h5 className="font-bold text-amber-900 text-sm">{member.productivityMetrics.option2.label}</h5>
-                          </div>
-                          <div className="text-3xl font-bold text-amber-700 mb-2">
-                            {member.productivityMetrics.option2.score.toFixed(1)}%
-                          </div>
-                          <p className="text-xs text-slate-600 mb-3">
-                            Emphasizes Redmine with 50% weight vs Daylog 50%
-                          </p>
-                          <div className="text-xs bg-white rounded p-2 text-slate-600 border border-amber-100">
-                            <span className="font-semibold">Formula:</span> (Redmine Rate × 0.50) + (Daylog Rate × 0.50)
-                          </div>
+                        <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                          <p className="text-xs font-bold text-gray-400 uppercase mb-2">Option 2: Balanced</p>
+                          <p className="text-xl font-black text-gray-900">{member.productivityMetrics.option2.score.toFixed(1)}%</p>
+                          <p className="text-xs text-gray-500 mt-2 leading-relaxed">Equal weight (50/50). Good for hybrid work verification.</p>
                         </div>
-
-                        {/* Option 3: Time-based Efficiency */}
-                        <div className="bg-white rounded-lg p-4 border border-indigo-100 shadow-sm hover:shadow-md transition-shadow">
-                          <div className="mb-3">
-                            <h5 className="font-bold text-slate-900 text-sm">{member.productivityMetrics.option3.label}</h5>
-                          </div>
-                          <div className="text-3xl font-bold text-indigo-700 mb-2">
-                            {member.productivityMetrics.option3.score.toFixed(1)}%
-                          </div>
-                          <p className="text-xs text-slate-600 mb-3">
-                            Task completion velocity based on time duration
-                          </p>
-                          <div className="text-xs bg-indigo-50 rounded p-2 text-slate-600 space-y-1">
-                            <div><span className="font-semibold">Daylog Avg:</span> {member.productivityMetrics.option3.avgDaylogDuration.toFixed(0)} min ({(member.productivityMetrics.option3.avgDaylogDuration / 60).toFixed(1)} hrs)</div>
-                            <div><span className="font-semibold">Redmine Avg:</span> {member.productivityMetrics.option3.avgRedmineDuration.toFixed(0)} min ({(member.productivityMetrics.option3.avgRedmineDuration / 60).toFixed(1)} hrs)</div>
-                          </div>
+                        <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                          <p className="text-xs font-bold text-gray-400 uppercase mb-2">Option 3: Velocity</p>
+                          <p className="text-xl font-black text-gray-900">{member.productivityMetrics.option3.score.toFixed(1)}%</p>
+                          <p className="text-xs text-gray-500 mt-2 leading-relaxed">Based on time tracking & efficiency. Speed of completion.</p>
                         </div>
-                      </div>
-                      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
-                        <p className="text-xs text-slate-700">
-                          <span className="font-semibold">Recommendation:</span> Choose the option that best fits your evaluation needs. Option 1 is simple, Option 2 balances both systems, and Option 3 focuses on task completion velocity.
-                        </p>
                       </div>
                     </div>
                   )}
-
-                  {/* Task Breakdown - Database vs Redmine */}
-                  <div className="pt-4 border-t border-slate-100">
-                    <h4 className="font-semibold text-slate-900 mb-3">
-                      Task Breakdown by Source
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Database Tasks */}
-                      <div className="bg-white rounded-lg p-4 border border-indigo-100 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="mb-3">
-                          <h5 className="font-semibold text-slate-900">Daylog Tasks</h5>
-                        </div>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-slate-700">Total:</span>
-                            <span className="font-bold text-blue-600">{member.dbTasks.total}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-700">Completed:</span>
-                            <span className="font-bold text-green-600">{member.dbTasks.completed}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-700">Blocked:</span>
-                            <span className="font-bold text-red-600">{member.dbTasks.blocked}</span>
-                          </div>
-                          {member.dbTasks.total > 0 && (
-                            <>
-                              <div className="pt-2 border-t border-slate-200">
-                                <div className="flex justify-between items-center mb-1">
-                                  <span className="text-slate-700 font-medium">Completion Rate:</span>
-                                  <span className="font-bold text-slate-900">
-                                    {Math.min(100, (member.dbTasks.completed / member.dbTasks.total) * 100).toFixed(1)}%
-                                  </span>
-                                </div>
-                                <div className="w-full bg-slate-200 rounded-full h-1.5">
-                                  <div
-                                    className="h-1.5 rounded-full bg-indigo-700"
-                                    style={{ width: `${Math.min(100, (member.dbTasks.completed / member.dbTasks.total) * 100)}%` }}
-                                  ></div>
-                                </div>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Redmine Tasks */}
-                      <div className="bg-white rounded-lg p-4 border border-amber-100 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="mb-3">
-                          <h5 className="font-semibold text-slate-900">Redmine Issues</h5>
-                        </div>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-slate-700">Total:</span>
-                            <span className="font-bold text-slate-900">{member.redmineStats.assignedIssues}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-700">New:</span>
-                            <span className="font-bold text-slate-900">{member.redmineStats.newIssues}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-700">In Progress:</span>
-                            <span className="font-bold text-slate-900">{member.redmineStats.inProgressIssues}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-700">Closed:</span>
-                            <span className="font-bold text-slate-900">{member.redmineStats.closedIssues}</span>
-                          </div>
-                          {member.redmineStats.assignedIssues > 0 && (
-                            <>
-                              <div className="pt-2 border-t border-slate-200">
-                                <div className="flex justify-between items-center mb-1">
-                                  <span className="text-slate-700 font-medium">Closure Rate:</span>
-                                  <span className="font-bold text-slate-900">
-                                    {Math.min(100, (member.redmineStats.closedIssues / member.redmineStats.assignedIssues) * 100).toFixed(1)}%
-                                  </span>
-                                </div>
-                                <div className="w-full bg-slate-200 rounded-full h-1.5">
-                                  <div
-                                    className="h-1.5 rounded-full bg-amber-600"
-                                    style={{ width: `${Math.min(100, (member.redmineStats.closedIssues / member.redmineStats.assignedIssues) * 100)}%` }}
-                                  ></div>
-                                </div>
-                              </div>
-                            </>
-                          )}
-
-
-                        </div>
-                      </div>
-                    </div>
-                  </div>
                 </div>
-              </div>
-            ))}
-        </div>
-
-        {/* Pagination Controls */}
-        {report.members && report.members.length > ITEMS_PER_PAGE && (
-          <div className="mt-6 flex items-center justify-between gap-4">
-            <button
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-semibold"
-            >
-              ← Previous
-            </button>
-
-            <div className="flex items-center gap-2">
-              {Array.from({ length: Math.ceil(report.members.length / ITEMS_PER_PAGE) }, (_, i) => i + 1).map((pageNum) => (
-                <button
-                  key={pageNum}
-                  onClick={() => setCurrentPage(pageNum)}
-                  className={`w-10 h-10 rounded-lg font-semibold transition-colors ${currentPage === pageNum
-                    ? 'bg-slate-700 text-white'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
-                >
-                  {pageNum}
-                </button>
               ))}
+          </div>
+
+          {/* Pagination */}
+          {report.members && report.members.length > ITEMS_PER_PAGE && (
+            <div className="mt-8 flex justify-center gap-4">
+              <button
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="px-6 py-2 rounded-xl font-bold bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setCurrentPage(Math.min(Math.ceil(report.members.length / ITEMS_PER_PAGE), currentPage + 1))}
+                disabled={currentPage === Math.ceil(report.members.length / ITEMS_PER_PAGE)}
+                className="px-6 py-2 rounded-xl font-bold bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+              </button>
             </div>
-
-            <button
-              onClick={() => setCurrentPage(Math.min(Math.ceil(report.members.length / ITEMS_PER_PAGE), currentPage + 1))}
-              disabled={currentPage === Math.ceil(report.members.length / ITEMS_PER_PAGE)}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-semibold"
-            >
-              Next →
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Scoring Information */}
-      <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-6 shadow-sm">
-        <h3 className="font-semibold text-slate-900 mb-3">
-          Productivity Score Calculation
-        </h3>
-        <p className="text-sm text-gray-700 mb-4">
-          The productivity score is calculated using a smart weighting system that prioritizes Redmine (office work) data while considering Daylog (home work) activities when available. The system automatically adjusts based on whether team members have Daylog tasks.
-        </p>
-
-        <div className="space-y-4 mb-6">
-          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-4 border-2 border-indigo-300 shadow-md">
-            <h4 className="font-bold text-indigo-900 mb-2">📊 Final Productivity Score (Recommended)</h4>
-            <p className="text-sm text-gray-700 mb-2">
-              The primary score for evaluating productivity. Uses a smart weighting system that adapts based on whether team members have Daylog tasks or are Redmine-only.
-            </p>
-            <div className="text-xs text-gray-600 space-y-2 bg-white bg-opacity-60 p-3 rounded mb-2">
-              <div className="font-semibold text-gray-800">Calculation Logic:</div>
-              <div>• <strong>If NO Daylog Tasks:</strong> Final Score = 100% × Redmine Completion Rate</div>
-              <div>• <strong>If HAS Daylog Tasks:</strong> Final Score = (50% × Redmine Rate) + (50% × Daylog Rate)</div>
-            </div>
-            <p className="text-xs text-gray-600 mt-2"><strong>Best for:</strong> Overall team member productivity evaluation equalizing both metrics</p>
-          </div>
-
-          <div className="bg-white rounded-lg p-4 border border-blue-200">
-            <h4 className="font-semibold text-blue-900 mb-2">Option 1: Combined Completion Rate (Redmine Focus)</h4>
-            <p className="text-sm text-gray-700 mb-2">
-              Combines completion rates with emphasis on Redmine. Uses 100% Redmine when no Daylog tasks exist, otherwise weights Redmine at 75% and Daylog at 25%.
-            </p>
-            <p className="text-xs text-gray-600 font-mono bg-gray-50 p-2 rounded">
-              If no Daylog: 100% × Redmine Rate | If Daylog: (75% × Redmine) + (25% × Daylog)
-            </p>
-            <p className="text-xs text-gray-600 mt-2"><strong>Best for:</strong> Primary focus on official office work tracking</p>
-          </div>
-
-          <div className="bg-white rounded-lg p-4 border border-purple-200">
-            <h4 className="font-semibold text-purple-900 mb-2">Option 2: Weighted Performance (Balanced)</h4>
-            <p className="text-sm text-gray-700 mb-2">
-              Balanced view treating Office (Redmine) and Home (Daylog) work equally. Weights both systems at 50% when both exist.
-            </p>
-            <p className="text-xs text-gray-600 font-mono bg-gray-50 p-2 rounded">
-              If no Daylog: 100% × Redmine Rate | If Daylog: (50% × Redmine) + (50% × Daylog)
-            </p>
-            <p className="text-xs text-gray-600 mt-2"><strong>Best for:</strong> Teams where WFH output is considered equal to office output</p>
-          </div>
-
-          <div className="bg-white rounded-lg p-4 border border-green-200">
-            <h4 className="font-semibold text-green-900 mb-2">Option 3: Time-based Efficiency</h4>
-            <p className="text-sm text-gray-700 mb-2">
-              Measures task completion velocity by analyzing actual time spent on completed tasks. Normalized to 0-100 where 4 tasks per working day = 100 points (perfect efficiency).
-            </p>
-            <div className="text-xs text-gray-600 space-y-1 bg-gray-50 p-2 rounded">
-              <div><strong>Calculation:</strong> (Completed Tasks / Total Working Days) × 25</div>
-              <div><strong>Daylog:</strong> Measured from start time to completion (updatedAt)</div>
-              <div><strong>Redmine:</strong> Measured from creation (created_on) to closure (closed_on)</div>
-              <div><strong>Working Day:</strong> 480 minutes (8 hours)</div>
-            </div>
-            <p className="text-xs text-gray-600 mt-2"><strong>Best for:</strong> Understanding real work velocity and task completion speed</p>
-          </div>
+          )}
         </div>
 
-        <div className="border-t border-slate-200 pt-4">
-          <p className="text-sm text-slate-700 font-semibold mb-2">Performance Status Levels:</p>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
-              <div className="text-2xl font-bold text-indigo-700">80+</div>
-              <div className="text-sm font-medium text-indigo-900">Excellent Performance</div>
-              <div className="text-xs text-slate-600 mt-1">Highly productive</div>
-            </div>
-            <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-100">
-              <div className="text-2xl font-bold text-indigo-600">60-79</div>
-              <div className="text-sm font-medium text-indigo-900">Good Performance</div>
-              <div className="text-xs text-slate-600 mt-1">On track</div>
-            </div>
-            <div className="bg-amber-50 rounded-lg p-4 border border-amber-100">
-              <div className="text-2xl font-bold text-amber-600">40-59</div>
-              <div className="text-sm font-medium text-amber-900">Fair Performance</div>
-              <div className="text-xs text-slate-600 mt-1">Needs improvement</div>
-            </div>
-            <div className="bg-white rounded-lg p-4 border border-slate-200">
-              <div className="text-2xl font-bold text-slate-600">&lt;40</div>
-              <div className="text-sm font-medium text-slate-800">Low Performance</div>
-              <div className="text-xs text-slate-600 mt-1">Requires attention</div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

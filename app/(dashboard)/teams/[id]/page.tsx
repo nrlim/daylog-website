@@ -16,6 +16,7 @@ interface TeamDetail extends Team {
     user: {
       id: string;
       username: string;
+      email?: string;
     };
   }>;
 }
@@ -37,10 +38,10 @@ export default function TeamDetailPage() {
   const [wfhLimit, setWfhLimit] = useState<number>(3);
   const [savingWfh, setSavingWfh] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [confirmModal, setConfirmModal] = useState<{ show: boolean; memberId: string; memberName: string }>({ 
-    show: false, 
-    memberId: '', 
-    memberName: '' 
+  const [confirmModal, setConfirmModal] = useState<{ show: boolean; memberId: string; memberName: string }>({
+    show: false,
+    memberId: '',
+    memberName: ''
   });
 
   useEffect(() => {
@@ -88,6 +89,11 @@ export default function TeamDetailPage() {
       await teamAPI.updateTeam(teamId, formData);
       loadTeamAndUsers();
       setIsEditing(false);
+      addNotification({
+        type: 'success',
+        title: 'Success',
+        message: 'Team updated',
+      });
     } catch (error) {
       console.error('Failed to update team:', error);
       setError('Failed to update team');
@@ -102,6 +108,11 @@ export default function TeamDetailPage() {
       await teamAPI.addMember(teamId, selectedUserId);
       setSelectedUserId('');
       loadTeamAndUsers();
+      addNotification({
+        type: 'success',
+        title: 'Welcome!',
+        message: 'New member added to the team',
+      });
     } catch (error: any) {
       console.error('Failed to add member:', error);
       setError(error.response?.data?.error || 'Failed to add member');
@@ -111,10 +122,10 @@ export default function TeamDetailPage() {
   const handleRemoveMember = async (memberId: string) => {
     const member = team?.members.find(m => m.id === memberId);
     if (!member) return;
-    setConfirmModal({ 
-      show: true, 
-      memberId, 
-      memberName: member.user.username 
+    setConfirmModal({
+      show: true,
+      memberId,
+      memberName: member.user.username
     });
   };
 
@@ -172,11 +183,21 @@ export default function TeamDetailPage() {
   };
 
   if (loading) {
-    return <div className="px-4 py-6">Loading...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="w-16 h-16 border-4 border-gray-100 border-t-purple-600 rounded-full animate-spin mb-6"></div>
+        <p className="text-gray-500 font-bold text-lg">Loading team details...</p>
+      </div>
+    );
   }
 
   if (!team) {
-    return <div className="px-4 py-6">Team not found</div>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <h2 className="text-2xl font-black text-gray-900 mb-2">Team Not Found</h2>
+        <button onClick={() => router.back()} className="text-purple-600 font-bold hover:underline">Go Back</button>
+      </div>
+    );
   }
 
   // Get available users (not already members)
@@ -185,333 +206,256 @@ export default function TeamDetailPage() {
   );
 
   return (
-    <div className="px-4 py-6 max-w-4xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">{team.name}</h1>
+    <div className="min-h-screen bg-gray-50/50 p-6 lg:p-10 font-sans">
+      <div className="max-w-7xl mx-auto">
+        {/* Navigation */}
         <button
           onClick={() => router.back()}
-          className="text-gray-600 hover:text-gray-900"
+          className="flex items-center gap-2 text-gray-400 hover:text-gray-900 font-bold mb-8 transition-colors"
         >
-          ← Back
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+          Back to Teams
         </button>
-      </div>
 
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
-        </div>
-      )}
-
-      {/* Team Info */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h2 className="text-xl font-semibold mb-2">Team Information</h2>
-            {!isEditing ? (
-              <div>
-                <p className="text-gray-600 mb-4">{team.description || 'No description'}</p>
-              </div>
-            ) : (
-              <form onSubmit={handleUpdateTeam} className="space-y-4">
-                <div>
-                  <label className="block text-gray-700 mb-2">Team Name</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 mb-2">Description</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    rows={4}
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-                  >
-                    Save
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsEditing(false)}
-                    className="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            )}
+        {error && (
+          <div className="bg-red-50 border border-red-100 text-red-700 px-4 py-3 rounded-xl mb-6 font-semibold flex items-center gap-2">
+            <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            {error}
           </div>
-          {!isEditing && (
-            <button
-              onClick={() => setIsEditing(true)}
-              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-            >
-              Edit
-            </button>
-          )}
-        </div>
-      </div>
+        )}
 
-      {/* Add Member Section - Enhanced for Team Leads */}
-      {isAdmin && (
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg shadow-md border border-blue-200 p-6 mb-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"></path>
-                <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14.5 7a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"></path>
-              </svg>
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">Add New Member</h2>
-              <p className="text-sm text-gray-600">Expand your team with new members</p>
-            </div>
-          </div>
-          
-          {availableUsers.length > 0 ? (
-            <form onSubmit={handleAddMember} className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Select User
-                </label>
-                <select
-                  value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(e.target.value)}
-                  className="w-full px-4 py-3 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                  required
-                >
-                  <option value="">Choose a user to add...</option>
-                  {availableUsers.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.username}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <button
-                type="submit"
-                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-3 rounded-lg hover:shadow-lg transition-all duration-200 font-semibold flex items-center justify-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10.5 1.5H19.5V10.5H10.5z"></path>
-                </svg>
-                Add Member to Team
-              </button>
-            </form>
-          ) : (
-            <div className="bg-white rounded-lg p-4 border border-blue-100">
-              <p className="text-gray-600 text-center">
-                <span className="text-green-600 font-semibold">✓ Complete</span> All users are already members of this team
-              </p>
-            </div>
-          )}
-        </div>
-      )}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-      {/* Members List */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Team Members ({team.members.filter(m => m.role !== 'team_admin').length})</h2>
-        
-        {team.members.length > 0 ? (
-          <div className="space-y-3">
-            {/* Team Leads First */}
-            {team.members.filter(m => m.isLead).length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-sm font-bold text-blue-700 uppercase tracking-wide mb-3 flex items-center gap-2">
-                  <span className="text-lg">👑</span> Team Leads
-                </h3>
-                <div className="space-y-2">
-                  {team.members.filter(m => m.isLead).map((member) => (
-                    <div key={member.id} className="flex justify-between items-center p-4 border-l-4 border-blue-500 bg-blue-50 rounded hover:bg-blue-100 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-200 rounded-full flex items-center justify-center">
-                          <span className="text-lg">👑</span>
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-900">{member.user.username}</p>
-                          <div className="flex gap-2 mt-1">
-                            <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full font-semibold">Team Lead</span>
-                          </div>
-                        </div>
-                      </div>
-                      {user?.role === 'admin' && (
-                        <button
-                          onClick={() => handleRemoveMember(member.id)}
-                          className="text-red-500 hover:text-red-700 hover:underline text-sm font-medium"
-                        >
-                          Remove
-                        </button>
-                      )}
+          {/* Left Column: Team Details & Members */}
+          <div className="lg:col-span-2 space-y-8">
+
+            {/* Team Info Card */}
+            <div className="bg-white rounded-3xl shadow-xl shadow-gray-100/50 border border-gray-100 p-8">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h2 className="text-gray-400 font-bold text-xs uppercase tracking-wider mb-1">Team Details</h2>
+                  {!isEditing ? (
+                    <>
+                      <h1 className="text-3xl font-black text-gray-900 mb-2">{team.name}</h1>
+                      <p className="text-gray-600 text-lg leading-relaxed">{team.description || 'No description provided.'}</p>
+                    </>
+                  ) : (
+                    <div className="w-full">
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        className="w-full text-3xl font-black text-gray-900 border-b-2 border-gray-200 focus:border-purple-500 outline-none bg-transparent mb-4 placeholder:text-gray-300"
+                        placeholder="Team Name"
+                      />
+                      <textarea
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        className="w-full text-lg text-gray-600 bg-gray-50 p-4 rounded-xl border-none outline-none resize-none focus:ring-2 focus:ring-purple-100"
+                        placeholder="Team Description"
+                        rows={3}
+                      />
                     </div>
-                  ))}
+                  )}
                 </div>
-              </div>
-            )}
 
-            {/* Regular Members */}
-            {team.members.filter(m => !m.isLead && (user?.role === 'admin' || m.role !== 'team_admin')).length > 0 && (
-              <div>
-                <h3 className="text-sm font-bold text-green-700 uppercase tracking-wide mb-3 flex items-center gap-2">
-                  <span className="text-lg">👤</span> Members ({team.members.filter(m => !m.isLead && (user?.role === 'admin' || m.role !== 'team_admin')).length})
-                </h3>
-                <div className="space-y-2">
-                  {team.members.filter(m => !m.isLead && (user?.role === 'admin' || m.role !== 'team_admin')).map((member) => (
-                    <div key={member.id} className="flex justify-between items-center p-4 border-l-4 border-green-500 bg-green-50 rounded hover:bg-green-100 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-green-200 rounded-full flex items-center justify-center">
-                          <span className="text-lg">👤</span>
+                {isAdmin && (
+                  <div className="flex gap-2">
+                    {isEditing ? (
+                      <>
+                        <button onClick={() => setIsEditing(false)} className="px-4 py-2 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors">Cancel</button>
+                        <button onClick={handleUpdateTeam} className="px-6 py-2 rounded-xl font-bold text-white bg-gray-900 hover:bg-black shadow-lg transition-all">Save</button>
+                      </>
+                    ) : (
+                      <button onClick={() => setIsEditing(true)} className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all">
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Members List */}
+            <div className="bg-white rounded-3xl shadow-xl shadow-gray-100/50 border border-gray-100 p-8">
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-2xl font-black text-gray-900">
+                  Members <span className="text-gray-300 font-medium text-lg ml-1">({team.members.length})</span>
+                </h2>
+              </div>
+
+              {team.members.length > 0 ? (
+                <div className="space-y-3">
+                  {/* Sort members: Leads first */}
+                  {[...team.members].sort((a, b) => (b.isLead ? 1 : 0) - (a.isLead ? 1 : 0)).map((member) => (
+                    <div key={member.id} className={`
+                             group flex items-center justify-between p-4 rounded-2xl border transition-all duration-200
+                             ${member.isLead ? 'bg-purple-50/50 border-purple-100 hover:border-purple-200' : 'bg-white border-gray-100 hover:border-gray-200 hover:shadow-md'}
+                          `}>
+                      <div className="flex items-center gap-4">
+                        <div className={`
+                                   w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold shadow-sm
+                                   ${member.isLead ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-500'}
+                                `}>
+                          {member.user.username[0].toUpperCase()}
                         </div>
                         <div>
-                          <p className="font-semibold text-gray-900">{member.user.username}</p>
-                          <span className="text-xs text-green-600 font-medium">Member</span>
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-gray-900">{member.user.username}</p>
+                            {member.isLead && <span className="bg-purple-200 text-purple-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full">Lead</span>}
+                          </div>
+                          {member.user.email && <p className="text-sm text-gray-500">{member.user.email}</p>}
                         </div>
                       </div>
+
                       {isAdmin && (
                         <button
                           onClick={() => handleRemoveMember(member.id)}
-                          className="text-red-500 hover:text-red-700 hover:underline text-sm font-medium"
+                          className="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                          title="Remove from team"
                         >
-                          Remove
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                         </button>
                       )}
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="text-center py-10 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                  <p className="text-gray-400 font-bold">No members in this team yet</p>
+                </div>
+              )}
+            </div>
           </div>
-        ) : (
-          <p className="text-gray-500">No members yet</p>
+
+          {/* Right Column: Add Member & Settings */}
+          {isAdmin && (
+            <div className="space-y-8">
+
+              {/* Add Member Card */}
+              <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-8 text-white shadow-xl shadow-gray-200">
+                <h3 className="text-xl font-black mb-1">Add New Member</h3>
+                <p className="text-gray-400 text-sm mb-6">Expand your team capabilities</p>
+
+                {availableUsers.length > 0 ? (
+                  <form onSubmit={handleAddMember} className="space-y-4">
+                    <div className="relative">
+                      <select
+                        value={selectedUserId}
+                        onChange={(e) => setSelectedUserId(e.target.value)}
+                        className="w-full appearance-none bg-white/10 border border-white/20 text-white rounded-xl px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white/20 transition-all font-medium"
+                        required
+                      >
+                        <option value="" className="text-gray-500">Select a user...</option>
+                        {availableUsers.map((user) => (
+                          <option key={user.id} value={user.id} className="text-gray-900">
+                            {user.username}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-white/50">
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full bg-white text-gray-900 hover:bg-gray-100 font-bold py-3 rounded-xl transition-all shadow-lg shadow-white/10 active:scale-[0.98] flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                      Add Member
+                    </button>
+                  </form>
+                ) : (
+                  <div className="bg-white/10 rounded-xl p-4 text-center border border-white/10">
+                    <p className="text-gray-300 text-sm font-medium">All users are already in this team</p>
+                  </div>
+                )}
+              </div>
+
+              {/* WFH Settings Card */}
+              <div className="bg-white rounded-3xl shadow-xl shadow-gray-100/50 border border-gray-100 p-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 bg-orange-100 rounded-lg text-orange-600">
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">WFH Settings</h3>
+                    <p className="text-xs text-gray-500 font-bold uppercase">Monthly Limit</p>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      Days Per Month
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="number"
+                        value={wfhLimit}
+                        onChange={(e) => setWfhLimit(Math.max(0, parseInt(e.target.value) || 0))}
+                        min="0"
+                        max="31"
+                        className="w-24 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 font-bold text-xl text-center"
+                      />
+                      <div className="text-sm text-gray-500 leading-tight">
+                        Max WFH days<br />per member
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-orange-50 rounded-xl p-4 border border-orange-100">
+                    <p className="text-xs text-orange-800 font-medium">
+                      <strong>Note:</strong> Quota resets automatically on the 1st of each month.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={handleSaveWfhLimit}
+                    disabled={savingWfh || wfhLimit === (team.wfhLimitPerMonth || 3)}
+                    className="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-bold transition-all shadow-md shadow-orange-200 disabled:opacity-50 disabled:shadow-none"
+                  >
+                    {savingWfh ? 'Saving Changes...' : 'Update Limit'}
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          )}
+        </div>
+
+        {/* Confirmation Modal */}
+        {confirmModal.show && (
+          <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 border border-white/20 transform scale-100 animate-in fade-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4v2m0 0v2m0-6v-2m0 0V7a2 2 0 012-2h.5a2 2 0 012 2v1m0 0h2a2 2 0 012 2v3.28a2 2 0 01-.973 1.693l-1.054.622A2 2 0 0015 17.25h-6v.75a2 2 0 01-2-2v-1m0 0H5a2 2 0 01-2-2V9m0 0h2a2 2 0 012-2h.5a2 2 0 012-2" /></svg>
+              </div>
+
+              <h3 className="text-xl font-black text-gray-900 text-center mb-2">Remove Member?</h3>
+              <p className="text-gray-500 text-center font-medium mb-8">
+                Are you sure you want to remove <strong className="text-gray-900">{confirmModal.memberName}</strong>? This action cannot be undone.
+              </p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setConfirmModal({ show: false, memberId: '', memberName: '' })}
+                  className="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmRemoveMember}
+                  className="px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition-colors shadow-lg shadow-red-200"
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
-
-      {/* WFH Settings */}
-      <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg shadow border border-orange-200 p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <svg className="w-6 h-6 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M10.5 1.5H19.5V10.5H10.5z"></path>
-          </svg>
-          <h2 className="text-lg font-bold text-gray-900">Work From Home Settings</h2>
-        </div>
-
-        {user?.role !== 'admin' ? (
-          <div className="bg-white rounded-lg p-4 border border-orange-200">
-            <p className="text-sm text-gray-600">
-              <span className="font-semibold">Current WFH Limit:</span> {team.wfhLimitPerMonth} days per month
-            </p>
-            <p className="text-xs text-gray-500 mt-2">
-              Only system admins can modify WFH settings.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                WFH Days Per Month
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  value={wfhLimit}
-                  onChange={(e) => setWfhLimit(Math.max(0, parseInt(e.target.value) || 0))}
-                  min="0"
-                  max="31"
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                />
-              </div>
-              <p className="text-xs text-gray-500 mt-2">
-                Members cannot add log activities once they exceed this limit in a month.
-              </p>
-            </div>
-
-            <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-              <p className="text-xs text-blue-800">
-                <strong>Note:</strong> The quota resets automatically at the start of each month.
-              </p>
-            </div>
-
-            <button
-              onClick={handleSaveWfhLimit}
-              disabled={savingWfh || wfhLimit === (team.wfhLimitPerMonth || 3)}
-              className="w-full px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-lg hover:shadow-lg transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {savingWfh ? 'Saving...' : 'Save WFH Limit'}
-            </button>
-          </div>
-        )}
-
-        {/* Info Card */}
-        <div className="mt-6 bg-white rounded-lg p-4 border border-orange-200 space-y-3">
-          <h3 className="font-semibold text-sm text-gray-900">How it Works</h3>
-          <ul className="text-xs text-gray-600 space-y-2">
-            <li className="flex gap-2">
-              <span className="text-orange-600 font-bold">•</span>
-              <span>Members log activities on the website</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-orange-600 font-bold">•</span>
-              <span>Mark activities as WFH when working from home</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-orange-600 font-bold">•</span>
-              <span>Monthly quota tracks WFH days per person</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-orange-600 font-bold">•</span>
-              <span>Cannot log more activities after limit is reached</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-orange-600 font-bold">•</span>
-              <span>Quota resets on the 1st of each month</span>
-            </li>
-          </ul>
-        </div>
-      </div>
-
-      {/* Confirmation Modal */}
-      {confirmModal.show && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 border border-gray-200">
-            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 mb-4 mx-auto">
-              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4v2m0 0v2m0-6v-2m0 0V7a2 2 0 012-2h.5a2 2 0 012 2v1m0 0h2a2 2 0 012 2v3.28a2 2 0 01-.973 1.693l-1.054.622A2 2 0 0015 17.25h-6v.75a2 2 0 01-2-2v-1m0 0H5a2 2 0 01-2-2V9m0 0h2a2 2 0 012-2h.5a2 2 0 012-2" />
-              </svg>
-            </div>
-            
-            <h3 className="text-lg font-bold text-gray-900 text-center mb-2">Remove Team Member?</h3>
-            <p className="text-gray-600 text-center mb-6">
-              Are you sure you want to remove <span className="font-semibold">{confirmModal.memberName}</span> from the team? This action cannot be undone.
-            </p>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmModal({ show: false, memberId: '', memberName: '' })}
-                className="flex-1 px-4 py-2.5 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmRemoveMember}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-                Remove
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
