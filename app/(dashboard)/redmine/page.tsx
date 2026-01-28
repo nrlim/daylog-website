@@ -179,6 +179,14 @@ export default function RedmineTicketsPage() {
   const [collapsedColumns, setCollapsedColumns] = useState<number[]>([]);
   const [dragOverIssueId, setDragOverIssueId] = useState<number | null>(null);
   const [createModalDefaults, setCreateModalDefaults] = useState<any>(null);
+  const [createProjectId, setCreateProjectId] = useState<string | number>('');
+  const [createModalVersions, setCreateModalVersions] = useState<any[]>([]);
+
+  const [selectedVersionId, setSelectedVersionId] = useState<string>('');
+
+  const [dragOverColumnId, setDragOverColumnId] = useState<number | null>(null);
+  // NEW: Track drag over position on a card
+  const [dragOverIssueConfig, setDragOverIssueConfig] = useState<{ id: number, position: 'top' | 'bottom' } | null>(null);
 
   // New State for Client-Side Filtering
   const [allIssues, setAllIssues] = useState<Issue[]>([]);
@@ -399,16 +407,70 @@ export default function RedmineTicketsPage() {
     fetchVersions();
   }, [projectFilter]);
 
+  useEffect(() => {
+    const fetchCreateVersions = async () => {
+      if (!createProjectId) {
+        setCreateModalVersions([]);
+        return;
+      }
+      try {
+        const res = await api.get(`/redmine/projects/${createProjectId}/versions`);
+        const v = res.data.versions || [];
+        setCreateModalVersions(v);
+        // Auto-select latest version
+        if (v.length > 0) setSelectedVersionId(v[v.length - 1].id);
+        else setSelectedVersionId('');
+      } catch (e) {
+        setCreateModalVersions([]);
+        setSelectedVersionId('');
+      }
+    };
+    fetchCreateVersions();
+  }, [createProjectId]);
+
   const handleDragStart = (e: React.DragEvent, issue: Issue) => {
     setDraggedIssue(issue);
     e.dataTransfer!.effectAllowed = 'move';
     e.dataTransfer!.setDragImage(e.currentTarget, 0, 0);
   };
-  const handleDragEnd = () => { setDraggedIssue(null); setDragOverIssueId(null); };
-  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.dataTransfer!.dropEffect = 'move'; };
+  const handleDragEnd = () => {
+    setDraggedIssue(null);
+    setDragOverIssueId(null);
+    setDragOverColumnId(null);
+    setDragOverIssueConfig(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent, colId: number) => {
+    e.preventDefault();
+    e.dataTransfer!.dropEffect = 'move';
+    if (draggedIssue && draggedIssue.status.id !== colId) {
+      if (dragOverColumnId !== colId) setDragOverColumnId(colId);
+    }
+  };
+
+  const handleCardDragOver = (e: React.DragEvent, issue: Issue) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!draggedIssue || draggedIssue.id === issue.id) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    const position = e.clientY < midY ? 'top' : 'bottom';
+
+    if (dragOverIssueConfig?.id !== issue.id || dragOverIssueConfig?.position !== position) {
+      setDragOverIssueConfig({ id: issue.id, position });
+    }
+
+    // Also trigger column highlight if different column
+    if (draggedIssue.status.id !== issue.status.id) {
+      if (dragOverColumnId !== issue.status.id) setDragOverColumnId(issue.status.id);
+    }
+  };
 
   const handleDrop = async (e: React.DragEvent, targetColumnId: number) => {
     e.preventDefault();
+    setDragOverColumnId(null);
+    setDragOverIssueConfig(null);
     if (!draggedIssue) return;
     setDragOverIssueId(null);
     if (draggedIssue.status.id === targetColumnId) {
@@ -473,6 +535,7 @@ export default function RedmineTicketsPage() {
       parent_subject: parent.subject,
       project_id: parent.project.id
     });
+    setCreateProjectId(parent.project.id);
     setShowCreateModal(true);
   };
 
@@ -502,7 +565,7 @@ export default function RedmineTicketsPage() {
               />
             </div>
             <button
-              onClick={() => { setCreateModalDefaults(null); setShowCreateModal(true); }}
+              onClick={() => { setCreateModalDefaults(null); setCreateProjectId(''); setShowCreateModal(true); }}
               className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all"
             >
               + New Task
@@ -622,9 +685,11 @@ export default function RedmineTicketsPage() {
               {visibleColumns.map(col => (
                 <div
                   key={col.id}
-                  onDragOver={handleDragOver}
+                  onDragOver={(e) => handleDragOver(e, col.id)}
                   onDrop={(e) => handleDrop(e, col.id)}
-                  className={`flex flex-col w-64 lg:w-72 border-r border-slate-200 transition-all duration-200 ${draggedIssue && draggedIssue.status.id !== col.id ? 'bg-indigo-50/10' : 'bg-transparent'} ${collapsedColumns.includes(col.id) ? 'w-10' : ''}`}
+                  className={`flex flex-col w-64 lg:w-72 border-r border-slate-200 transition-all duration-200 
+                    ${dragOverColumnId === col.id ? 'bg-indigo-50 border-indigo-300 ring-2 ring-inset ring-indigo-400/50' : (draggedIssue && draggedIssue.status.id !== col.id ? 'bg-indigo-50/10' : 'bg-transparent')} 
+                    ${collapsedColumns.includes(col.id) ? 'w-10' : ''}`}
                 >
                   {/* Compact Header */}
                   <div className={`px-2 py-2 flex items-center justify-between text-center bg-slate-100/90 border-t-4 border-${col.accentColor}-500 border-b border-slate-200 backdrop-blur-sm`}>
@@ -640,53 +705,74 @@ export default function RedmineTicketsPage() {
                     <button onClick={() => toggleColumnCollapse(col.id)} className="text-gray-400 hover:text-gray-600"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg></button>
                   </div>
 
+                  {/* Drop Zone Indicator - visible when dragging over this column (EMPTY column scenario or general fallback) */}
+                  {dragOverColumnId === col.id && draggedIssue && draggedIssue.status.id !== col.id && col.issues.length === 0 && !collapsedColumns.includes(col.id) && (
+                    <div className="mx-2 mt-2 h-20 border-2 border-dashed border-indigo-400 bg-indigo-100/50 rounded-lg flex items-center justify-center text-xs font-bold text-indigo-600 animate-pulse shadow-inner">
+                      Drop here to move to {col.name}
+                    </div>
+                  )}
+
                   {!collapsedColumns.includes(col.id) && (
                     <div className="flex-1 overflow-y-auto p-1.5 space-y-2 custom-scrollbar bg-gray-50/10">
                       {col.issues.map(issue => (
-                        <div
-                          key={issue.id}
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, issue)}
-                          onDragEnd={handleDragEnd}
-                          onClick={() => setSelectedIssue(issue)}
-                          className={`group p-2 rounded-sm border shadow-sm cursor-grab active:cursor-grabbing relative ${getCardStyle(issue.tracker.name)}`}
-                        >
-                          <div className="flex justify-between items-start mb-1">
-                            <div className="font-bold text-[10px] text-gray-800">
-                              {issue.tracker.name} #{issue.id}
-                            </div>
-                            {/* Project abbreviated or truncated */}
-                            <div className="text-[9px] text-gray-500 truncate max-w-[80px]">
-                              {issue.project.name}
-                            </div>
-                          </div>
-
-                          <h4 className="text-xs font-semibold text-gray-900 leading-snug mb-2 line-clamp-3">{issue.subject}</h4>
-
-                          {/* Parent (if exists) */}
-                          {issue.parent && (
-                            <div className="text-[10px] text-gray-500 mb-1 truncate">
-                              ↳ {issue.parent.subject || `Task #${issue.parent.id}`}
-                            </div>
+                        <div key={issue.id}>
+                          {/* Top Insert Indicator */}
+                          {dragOverIssueConfig?.id === issue.id && dragOverIssueConfig.position === 'top' && (
+                            <div className="h-1.5 w-full bg-indigo-500 rounded-full my-1 shadow-md shadow-indigo-200 animate-pulse"></div>
                           )}
 
-                          <div className="flex items-center gap-2 mt-1">
-                            {/* Avatar */}
-                            {issue.assigned_to ? (
-                              <div className="flex items-center gap-1.5 text-gray-600">
-                                <div className="w-4 h-4 rounded-sm bg-gray-200 flex items-center justify-center">
-                                  <svg className="w-3 h-3 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
-                                </div>
-                                <span className="text-[10px] font-medium truncate max-w-[100px]">{issue.assigned_to.name}</span>
+                          <div
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, issue)}
+                            onDragEnd={handleDragEnd}
+                            onDragOver={(e) => handleCardDragOver(e, issue)}
+                            onDrop={(e) => { e.stopPropagation(); handleDrop(e, col.id); }} // Explicitly handle drop on card bubbling to column logic basically
+                            onClick={() => setSelectedIssue(issue)}
+                            className={`group p-2 rounded-sm border shadow-sm cursor-grab active:cursor-grabbing relative transition-all ${getCardStyle(issue.tracker.name)}
+                              ${dragOverIssueConfig?.id === issue.id ? 'opacity-80 scale-[0.99]' : ''}
+                            `}
+                          >
+                            <div className="flex justify-between items-start mb-1">
+                              <div className="font-bold text-[10px] text-gray-800">
+                                {issue.tracker.name} #{issue.id}
                               </div>
-                            ) : <span className="text-[10px] text-gray-400">-</span>}
+                              {/* Project abbreviated or truncated */}
+                              <div className="text-[9px] text-gray-500 truncate max-w-[80px]">
+                                {issue.project.name}
+                              </div>
+                            </div>
 
-                            {/* Priority Indicator */}
-                            {issue.priority.name.toLowerCase() !== 'normal' && (
-                              <span className={`ml-auto text-[9px] px-1 rounded ${getPriorityColor(issue.priority.name)}`}>
-                                {issue.priority.name}
-                              </span>
+                            <h4 className="text-xs font-semibold text-gray-900 leading-snug mb-2 line-clamp-3">{issue.subject}</h4>
+
+                            {/* Parent (if exists) */}
+                            {issue.parent && (
+                              <div className="text-[10px] text-gray-500 mb-1 truncate">
+                                ↳ {issue.parent.subject || `Task #${issue.parent.id}`}
+                              </div>
                             )}
+
+                            <div className="flex items-center gap-2 mt-1">
+                              {/* Avatar */}
+                              {issue.assigned_to ? (
+                                <div className="flex items-center gap-1.5 text-gray-600">
+                                  <div className="w-4 h-4 rounded-sm bg-gray-200 flex items-center justify-center">
+                                    <svg className="w-3 h-3 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
+                                  </div>
+                                  <span className="text-[10px] font-medium truncate max-w-[100px]">{issue.assigned_to.name}</span>
+                                </div>
+                              ) : <span className="text-[10px] text-gray-400">-</span>}
+
+                              {/* Priority Indicator */}
+                              {issue.priority.name.toLowerCase() !== 'normal' && (
+                                <span className={`ml-auto text-[9px] px-1 rounded ${getPriorityColor(issue.priority.name)}`}>
+                                  {issue.priority.name}
+                                </span>
+                              )}
+                              {/* Bottom Insert Indicator */}
+                              {dragOverIssueConfig?.id === issue.id && dragOverIssueConfig.position === 'bottom' && (
+                                <div className="h-1.5 w-full bg-indigo-500 rounded-full my-1 shadow-md shadow-indigo-200 animate-pulse"></div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -773,8 +859,16 @@ export default function RedmineTicketsPage() {
                 fetchIssues();
               } catch (err: any) { addNotification({ type: 'error', title: 'Error', message: err.message }); }
             }} className="space-y-4">
-              <input name="subject" defaultValue={editingIssue.subject} className="w-full border p-2 rounded" required />
-              <textarea name="description" rows={5} defaultValue={editingIssue.description} className="w-full border p-2 rounded" />
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Subject</label>
+                  <input name="subject" defaultValue={editingIssue.subject} className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Description</label>
+                  <textarea name="description" rows={5} defaultValue={editingIssue.description} className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all" />
+                </div>
+              </div>
               <div className="flex justify-end gap-2">
                 <button type="button" onClick={() => setEditingIssue(null)} className="px-4 py-2 bg-gray-100 rounded">Cancel</button>
                 <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded">Save</button>
@@ -795,10 +889,11 @@ export default function RedmineTicketsPage() {
                 const payload: any = {
                   subject: formData.get('subject'),
                   description: formData.get('description'),
-                  project_id: parseInt(formData.get('project_id') as string),
+                  project_id: createModalDefaults?.project_id || parseInt(formData.get('project_id') as string),
                   tracker_id: parseInt(formData.get('tracker_id') as string),
                   priority_id: parseInt(formData.get('priority_id') as string),
                   assigned_to_id: formData.get('assigned_to_id') || undefined,
+                  fixed_version_id: formData.get('fixed_version_id') || undefined,
                 };
                 if (createModalDefaults?.parent_issue_id) payload.parent_issue_id = createModalDefaults.parent_issue_id;
                 await api.post('/redmine/issues', payload);
@@ -807,27 +902,71 @@ export default function RedmineTicketsPage() {
                 fetchIssues();
               } catch (err: any) { addNotification({ type: 'error', title: 'Error', message: err.message }); }
             }} className="space-y-4">
-              <input name="subject" placeholder="Subject" className="w-full border p-2 rounded" required />
-              <textarea name="description" placeholder="Description" className="w-full border p-2 rounded" />
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Subject</label>
+                  <input name="subject" placeholder="What needs to be done?" className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Description</label>
+                  <textarea name="description" placeholder="Add more details..." className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all" />
+                </div>
 
-              {/* Simplified Selects for brevity in this re-write, assuming standard <select> inside Modal is fine or I can use CustomSelect if I pass props carefully. I'll stick to native for Modals to ensure reliability unless asked. */}
-              <div className="grid grid-cols-2 gap-4">
-                <select name="project_id" defaultValue={createModalDefaults?.project_id} disabled={!!createModalDefaults?.project_id} className="border p-2 rounded" required>
-                  <option value="">Select Project</option>
-                  {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-                <select name="tracker_id" className="border p-2 rounded" required>
-                  {trackers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
-                <select name="priority_id" defaultValue="2" className="border p-2 rounded">
-                  <option value="2">Normal</option>
-                  <option value="3">High</option>
-                  <option value="4">Urgent</option>
-                </select>
-                <select name="assigned_to_id" className="border p-2 rounded">
-                  <option value="">Unassigned</option>
-                  {assignees.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </select>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+                  {createModalDefaults?.project_id && <input type="hidden" name="project_id" value={createModalDefaults.project_id} />}
+
+                  <div className="col-span-1">
+                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Project</label>
+                    <select
+                      name="project_id"
+                      defaultValue={createModalDefaults?.project_id}
+                      disabled={!!createModalDefaults?.project_id}
+                      className="w-full border border-gray-300 p-2 rounded-lg bg-white outline-none focus:border-indigo-500"
+                      required
+                      onChange={(e) => setCreateProjectId(e.target.value)}
+                    >
+                      <option value="">Select Project</option>
+                      {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="col-span-1">
+                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Tracker</label>
+                    <select name="tracker_id" className="w-full border border-gray-300 p-2 rounded-lg bg-white outline-none focus:border-indigo-500" required>
+                      {trackers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="col-span-1">
+                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Priority</label>
+                    <select name="priority_id" defaultValue="2" className="w-full border border-gray-300 p-2 rounded-lg bg-white outline-none focus:border-indigo-500">
+                      <option value="2">Normal</option>
+                      <option value="3">High</option>
+                      <option value="4">Urgent</option>
+                    </select>
+                  </div>
+
+                  <div className="col-span-1">
+                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Assignee</label>
+                    <select name="assigned_to_id" className="w-full border border-gray-300 p-2 rounded-lg bg-white outline-none focus:border-indigo-500">
+                      <option value="">Unassigned</option>
+                      {assignees.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Target Version</label>
+                    <select
+                      name="fixed_version_id"
+                      className="w-full border border-gray-300 p-2 rounded-lg bg-white outline-none focus:border-indigo-500"
+                      value={selectedVersionId}
+                      onChange={(e) => setSelectedVersionId(e.target.value)}
+                    >
+                      <option value="">No Target Version</option>
+                      {createModalVersions.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                    </select>
+                  </div>
+                </div>
               </div>
               <div className="flex justify-end gap-2">
                 <button type="button" onClick={() => setShowCreateModal(false)} className="px-4 py-2 bg-gray-100 rounded">Cancel</button>
